@@ -1,0 +1,41 @@
+# Astraeum Dungeon
+
+A 2D pixel-art dungeon prototype set in the world of the Astraeum magic academy. Pick one of 12 zodiac students, choose ice or fire magic, and fight through three floors to defeat the Dungeon Slime King.
+
+This is a course project prototype and the first playable slice of a larger personal game.
+
+## Play
+
+Open `index.html` in any modern browser. Everything (sprites, tiles, code) is bundled into that one file, so no install or server is needed.
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| Arrows / WASD | Move (4 directions) |
+| J / Space | Cast spell |
+| K | Burst (area attack, has a cooldown) |
+| E | Open chests, enter portals |
+| H | Use a healing herb |
+| P / Esc | Pause |
+
+On mobile, use the on-screen buttons below the game.
+
+## What's in the prototype
+
+- **Characters:** 12 playable zodiac students (Aries to Pisces), each with 4-direction walking sprites and an idle pose.
+- **Magic:** one shared spell set in two elements. Ice slows enemies; fire burns them over time.
+- **Floors:** Floor 1 has slimes, Floor 2 adds bats, Floor 3 is the boss arena.
+- **Boss:** the Dungeon Slime King jumps and slams with a warning circle, fires bullet rings, and enrages below half HP (denser volleys, summons slimes).
+- **Loot:** chests and monster drops give minerals (Amethyst, Sapphire) and herbs (Healing Herb, Glowcap). A summary screen shows time, kills and items found.
+
+## Tuning
+
+Balance values (HP, damage, speed, cooldowns) live in the `TUNE` object near the top of the script in `index.html`.
+
+## Credits
+
+- **Character sprites:** created by Anh Nguyen with PixelLab.
+- **Dungeon tiles and props:** [Pixel Art Top Down - Basic](https://docs.cainos.net/pixel-art-top-down-basic) by Cainos.
+- **Monsters, boss and spell effects:** drawn in code as placeholders until final sprites are made.
+- **Code:** built with AI-assisted development (Claude).
