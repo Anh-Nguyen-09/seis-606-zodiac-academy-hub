@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Astraeum Dungeon</title>
+<title>Astraeum Tower</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -25,6 +25,7 @@
   .overlay.show{ display:flex; }
   .overlay h2{ font-size:12px; color:var(--gold); margin:0; line-height:1.6; }
   .overlay p{ font-size:8px; line-height:1.9; color:var(--dim); margin:0; max-width:560px; }
+  .overlay{ justify-content:safe center; }
   #roster{ display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; width:100%; max-width:640px; }
   .card{ font-family:inherit; background:var(--panel); border:2px solid var(--line); border-radius:8px; color:var(--text);
     padding:4px 2px 6px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; }
@@ -47,16 +48,55 @@
   #acts{ display:grid; grid-template-columns:repeat(3,64px); gap:6px; }
   #acts button{ height:40px; font-size:7px; line-height:1.5; }
   #help{ font-size:7px; color:var(--dim); line-height:2; flex:1 1 200px; text-align:right; }
-  @media (max-width:560px){ #roster{ grid-template-columns:repeat(4, 1fr); } #help{ text-align:left; } }
+  .col{ display:flex; flex-direction:column; gap:8px; width:min(280px, 90%); }
+  .btn.big{ font-size:10px; padding:12px 14px; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .dim{ color:var(--dim); }
+  .gold{ color:#ffd84a; }
+  p.big{ font-size:10px; }
+  .warn{ color:#ff9aa8 !important; min-height:8px; }
+  .hudbtn{ position:absolute; top:10px; right:10px; z-index:3; display:none; font-family:inherit; font-size:7px; padding:8px 8px;
+    background:rgba(16,12,26,.85); color:var(--text); border:2px solid var(--line); border-radius:6px; cursor:pointer; }
+  .hudbtn.show{ display:block; }
+  .hudbtn:hover{ border-color:var(--gold); }
+  .savecard{ display:flex; gap:10px; align-items:center; background:var(--panel); border:2px solid var(--line); border-radius:8px;
+    padding:8px 12px; font-size:7px; line-height:2; text-align:left; max-width:520px; }
+  .savecard canvas{ width:48px; height:48px; image-rendering:pixelated; background:var(--panel2); border-radius:6px; }
+  #tower{ display:grid; grid-template-columns:repeat(5, 1fr); gap:5px; width:100%; max-width:520px; }
+  .fl{ background:var(--panel); border:2px solid var(--line); border-radius:6px; padding:4px 2px; font-size:6px; line-height:1.9;
+    display:flex; flex-direction:column; align-items:center; min-height:46px; justify-content:center; }
+  .fl .num{ font-size:8px; color:var(--text); }
+  .fl.boss{ border-color:#5a3050; }
+  .fl.done{ background:#1d2a20; border-color:#3f7a4a; color:#9fe08a; }
+  .fl.cur{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(243,196,90,.3); }
+  #shopList{ display:flex; flex-direction:column; gap:5px; width:100%; max-width:520px; }
+  .srow{ display:flex; align-items:center; gap:10px; background:var(--panel); border:2px solid var(--line); border-radius:6px; padding:5px 8px; }
+  .sicon{ width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--gold); }
+  .sicon canvas{ width:21px; height:21px; image-rendering:pixelated; }
+  .stxt{ flex:1; font-size:7px; line-height:1.9; text-align:left; }
+  .srow .btn{ min-width:64px; color:#ffd84a; }
+  @media (max-width:560px){ #tower{ gap:3px; } .fl{ min-height:40px; } #roster{ grid-template-columns:repeat(4, 1fr); } #help{ text-align:left; } }
 </style>
 </head>
 <body>
 <div id="wrap">
-  <h1>ASTRAEUM DUNGEON</h1>
+  <h1>ASTRAEUM TOWER</h1>
   <div id="stage">
     <canvas id="game" width="800" height="500"></canvas>
 
-    <div id="selectScreen" class="overlay show">
+    <button id="pauseBtn" class="hudbtn" title="Pause (P / Esc)">⏸ Pause</button>
+
+    <div id="lobbyScreen" class="overlay show">
+      <h2>Astraeum Tower · Lobby</h2>
+      <div id="saveCard" class="savecard"></div>
+      <div class="row"><button id="contBtn" class="btn primary">▶ Continue</button><button id="newBtn" class="btn">✦ New game</button></div>
+      <p id="newWarn" class="warn"></p>
+      <div id="tower"></div>
+      <p id="recSum"></p>
+      <p class="dim">♛ boss floor · ⛁ shop floor · ✓ cleared (best time). Your run saves automatically at the start of every floor.</p>
+    </div>
+
+    <div id="selectScreen" class="overlay">
       <h2>Choose your character</h2>
       <div id="roster"></div>
       <p id="pickName">—</p>
@@ -65,26 +105,41 @@
         <button class="btn el fire" data-el="fire">🔥 Fire magic</button>
       </div>
       <p>Pick your starting element; press Q in the dungeon to swap. Ice slows, fire burns, and hitting a slowed enemy with fire (or a burning one with ice) sets off a Steam Burst. Press L to attack with your character's own weapon.</p>
-      <button id="startBtn" class="btn primary">▶ Enter the dungeon</button>
+      <div class="row"><button id="backBtn" class="btn">◀ Lobby</button><button id="startBtn" class="btn primary">▶ Enter the tower</button></div>
+    </div>
+
+    <div id="shopScreen" class="overlay">
+      <h2>⛁ Wandering Shrine</h2>
+      <p id="shopGold" class="gold big"></p>
+      <div id="shopList"></div>
+      <button id="sellBtn" class="btn"></button>
+      <p id="shopMsg"></p>
+      <button id="shopClose" class="btn primary">Close (E / Esc)</button>
     </div>
 
     <div id="pauseScreen" class="overlay">
-      <h2>Paused</h2>
-      <p>Arrows / WASD: move · Space: dodge (uses stamina) · L: weapon attack · U: shield · J: cast spell · K: burst · Q: swap ice/fire · E: open chests, enter portals · H: use a healing herb</p>
-      <div class="row"><button class="btn primary" data-act="resume">Resume</button><button class="btn" data-act="menu">Change character</button></div>
+      <h2>⏸ Paused</h2>
+      <p id="pauseInfo"></p>
+      <div class="col">
+        <button class="btn primary big" data-act="resume">▶ Resume</button>
+        <button class="btn big" data-act="retryFloor">↺ Restart this floor</button>
+        <button class="btn big" data-act="lobby">⌂ Return to lobby</button>
+      </div>
+      <p class="dim">Returning to the lobby keeps your progress from the start of this floor.</p>
+      <p>Arrows / WASD: move · Space: dodge · L: weapon · J: spell · K: burst · Q: swap ice/fire · U: shield · E: interact · H: herb</p>
     </div>
 
     <div id="deadScreen" class="overlay">
       <h2>You have fallen…</h2>
       <p id="deadText"></p>
-      <div class="row"><button class="btn primary" data-act="retryFloor">Retry this floor</button><button class="btn" data-act="menu">Change character</button></div>
+      <div class="row"><button class="btn primary" data-act="retryFloor">↺ Retry this floor</button><button class="btn" data-act="lobby">⌂ Return to lobby</button></div>
     </div>
 
     <div id="winScreen" class="overlay">
       <h2>Victory!</h2>
       <p id="winSub"></p>
       <div id="winStats" class="stats"></div>
-      <div class="row"><button class="btn primary" data-act="again">Play again</button><button class="btn" data-act="menu">Choose another character</button></div>
+      <div class="row"><button class="btn primary" data-act="lobby">⌂ Return to lobby</button></div>
     </div>
   </div>
 
@@ -241,7 +296,13 @@ const TUNE = {
   reactionRadius: 56,
   slime: { hp:36, speed:1.0, dmg:12, r:12, aggro:230 },
   bat:   { hp:24, speed:1.8, dmg:9,  r:10, aggro:270 },
-  boss:  { hp:560, r:34, dmg:18 }
+  spitter: { hp:40, speed:0.9, dmg:11, r:12, aggro:270, shootCd:150 },   // slime tim ban dich (tang 6+)
+  brute: { hp:110, speed:0.8, dmg:20, r:17, aggro:230 },                  // slime khong lo (tang 11+)
+  boss:  { hp:560, r:34, dmg:18 },
+  batlord: { r:30, dmg:16 },
+  bulletDmg: 10,
+  // do kho theo tang: mau quai x (1 + scaleHp*(tang-1)), sat thuong x (1 + scaleDmg*(tang-1))
+  scaleHp: 0.13, scaleDmg: 0.06, scaleSpeed: 0.02, scaleGold: 0.10
 };
 
 // Vu khi rieng tung nhan vat (L). type: arc = chem vong cung, thrust = dam thang, throw = phong dan
@@ -261,11 +322,129 @@ const WEAPONS = {
   pisces:      { name:'Trident',          type:'thrust', dmg:14, range:58, arc:0.75, cd:24, kb:3, prongs:3 }
 };
 
-const FLOORS = [
-  { map: MAPS.f1, name: 'Floor 1 · Damp Corridors', light: 0.80 },
-  { map: MAPS.f2, name: 'Floor 2 · Bat Caves',          light: 0.84 },
-  { map: MAPS.f3, name: 'Floor 3 · Slime King\'s Hall',  light: 0.82 }
+// ----- THAP 15 TANG -----
+const FLOOR_COUNT = 15, FLOORS_TXT = '15';
+const TIERS = [
+  { name:'Damp Corridors', tint:null,                    light:0.80 },
+  { name:'Bat Caves',      tint:'rgba(40,24,80,0.20)',   light:0.85 },
+  { name:'Abyssal Halls',  tint:'rgba(90,14,24,0.20)',   light:0.88 }
 ];
+// boss moi 5 tang
+const BOSSES = {
+  5:  { type:'boss',    spr:'boss',    name:'Dungeon Slime King', hp:560,  tier:1 },
+  10: { type:'batlord', spr:'batlord', name:'Bat Lord',           hp:900,  tier:2 },
+  15: { type:'boss',    spr:'emperor', name:'Slime Emperor',      hp:1500, tier:3 }
+};
+const SHOP_FLOORS = [4, 9, 14];   // tang ngay truoc boss co tru ban do
+function floorDef(n){
+  const tier = TIERS[Math.min(2, Math.floor((n-1)/5))], boss = BOSSES[n] || null;
+  return { n, boss, shop: SHOP_FLOORS.includes(n), light: tier.light, tint: tier.tint,
+    name: 'Floor ' + n + ' · ' + (boss ? boss.name + "'s Lair" : tier.name) };
+}
+function floorMap(n){
+  if(BOSSES[n]) return MAPS.f3;
+  if(n === 1) return MAPS.f1;
+  if(n === 2) return MAPS.f2;
+  return genMap(n);
+}
+
+// ----- sinh ban do ngau nhien: phong + hanh lang, kiem tra di duoc toi cong -----
+const ri = (a,b)=> a + Math.floor(Math.random()*(b-a+1));
+function genMap(n){
+  for(let i=0;i<40;i++){ const m = tryGenMap(n); if(m) return m; }
+  return MAPS.f1;
+}
+function bfsTiles(g, sx, sy, blockFn){
+  const h = g.length, w = g[0].length, seen = new Uint8Array(w*h), q = [[sx,sy]]; seen[sy*w+sx] = 1;
+  const out = new Map(); out.set(sy*w+sx, 0);
+  while(q.length){
+    const [x,y] = q.shift(), d = out.get(y*w+x);
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx = x+dx, ny = y+dy; if(nx<0||ny<0||nx>=w||ny>=h) continue;
+      const k = ny*w+nx; if(seen[k] || g[ny][nx]==='#' || blockFn(g[ny][nx])) continue;
+      seen[k] = 1; out.set(k, d+1); q.push([nx,ny]);
+    }
+  }
+  return out;
+}
+function tryGenMap(n){
+  const w = 38 + Math.min(12, Math.floor(n/2)*2), h = 26 + Math.min(8, Math.floor(n/3)*2);
+  const g = Array.from({length:h}, ()=>Array(w).fill('#'));
+  const rooms = [], target = Math.min(10, 5 + Math.floor(n/3));
+  for(let i=0;i<500 && rooms.length<target;i++){
+    const rw = ri(6,11), rh = ri(5,8), x = ri(2, w-rw-3), y = ri(3, h-rh-3);
+    if(rooms.some(r=> x < r.x+r.w+3 && x+rw+3 > r.x && y < r.y+r.h+3 && y+rh+3 > r.y)) continue;
+    rooms.push({ x, y, w:rw, h:rh, cx:x+Math.floor(rw/2), cy:y+Math.floor(rh/2) });
+  }
+  if(rooms.length < 4) return null;
+  for(const r of rooms) for(let yy=r.y; yy<r.y+r.h; yy++) for(let xx=r.x; xx<r.x+r.w; xx++) g[yy][xx] = '.';
+  // noi phong bang cay khung nho nhat + 1 vong phu
+  const inT = [0], edges = [];
+  while(inT.length < rooms.length){
+    let best = null;
+    for(const i of inT) for(let j=0;j<rooms.length;j++){ if(inT.includes(j)) continue;
+      const d = Math.abs(rooms[i].cx-rooms[j].cx) + Math.abs(rooms[i].cy-rooms[j].cy); if(!best || d < best[2]) best = [i,j,d]; }
+    inT.push(best[1]); edges.push(best);
+  }
+  const ea = ri(0,rooms.length-1), eb = ri(0,rooms.length-1); if(ea !== eb) edges.push([ea,eb]);
+  const dig = (x,y)=>{ if(x>1 && y>2 && x<w-2 && y<h-2) g[y][x] = '.'; };
+  for(const [a,b] of edges){
+    const A = rooms[a], B = rooms[b], horizFirst = Math.random() < 0.5;
+    const hx = (y, x0, x1)=>{ for(let x=Math.min(x0,x1); x<=Math.max(x0,x1)+1; x++){ dig(x,y); dig(x,y+1); } };
+    const vy = (x, y0, y1)=>{ for(let y=Math.min(y0,y1); y<=Math.max(y0,y1)+1; y++){ dig(x,y); dig(x+1,y); } };
+    if(horizFirst){ hx(A.cy, A.cx, B.cx); vy(B.cx, A.cy, B.cy); } else { vy(A.cx, A.cy, B.cy); hx(B.cy, A.cx, B.cx); }
+  }
+  // bat dau o phong 0, cong o phong xa nhat (tinh theo duong di that)
+  const S = rooms[0];
+  g[S.cy][S.cx] = 'P';
+  const dmap = bfsTiles(g, S.cx, S.cy, ()=>false);
+  let far = null, fd = -1;
+  for(const r of rooms.slice(1)){ const d = dmap.get(r.cy*w+r.cx); if(d !== undefined && d > fd){ fd = d; far = r; } }
+  if(!far || fd < 18) return null;
+  g[far.cy][far.cx] = '>';
+  const interior = r=>[ri(r.x+1, r.x+r.w-2), ri(r.y+1, r.y+r.h-2)];
+  const free = (x,y)=> g[y][x] === '.' && Math.abs(x-S.cx) + Math.abs(y-S.cy) > 3 && Math.abs(x-far.cx) + Math.abs(y-far.cy) > 1;
+  const put = (r, ch, tries)=>{ for(let t=0;t<(tries||20);t++){ const [x,y] = interior(r); if(free(x,y)){ g[y][x] = ch; return [x,y]; } } return null; };
+  // quai: nhieu hon, da dang hon khi len cao
+  const pool = ['s','s']; if(n >= 3) pool.push('b'); if(n >= 6) pool.push('p','b'); if(n >= 11) pool.push('g','p');
+  for(const r of rooms){
+    if(r === S) continue;
+    const cnt = Math.min(6, ri(1, 2 + Math.floor(n/4)));
+    for(let i=0;i<cnt;i++) put(r, pool[ri(0,pool.length-1)]);
+  }
+  const others = rooms.filter(r=>r!==S);
+  for(let i=0;i<1 + Math.floor(n/6); i++) put(others[ri(0,others.length-1)], 'C');
+  for(let i=0;i<ri(1,3);i++) put(others[ri(0,others.length-1)], 'h');
+  if(Math.random() < 0.6) put(others[ri(0,others.length-1)], 'm');
+  for(let i=0;i<ri(1,3);i++) put(others[ri(0,others.length-1)], Math.random()<0.5 ? 'a' : 'z');
+  // tru ban do (tang truoc boss) ngay canh cho xuat phat
+  if(SHOP_FLOORS.includes(n)){
+    for(const [dx,dy] of [[2,-1],[-2,-1],[2,1],[-2,1],[0,-2]]){ const x = S.cx+dx, y = S.cy+dy; if(g[y] && g[y][x] === '.'){ g[y][x] = 'S'; break; } }
+  }
+  // do trang tri sat tuong, khong duoc chan duong
+  const solidCh = ch=> 'BXoLRCS'.includes(ch);
+  const baseReach = bfsTiles(g, S.cx, S.cy, solidCh).size;
+  for(const r of rooms){
+    const nProps = ri(0,3);
+    for(let i=0;i<nProps;i++){
+      const side = ri(0,3);
+      let x = ri(r.x, r.x+r.w-1), y = ri(r.y, r.y+r.h-1);
+      if(side===0) y = r.y; else if(side===1) y = r.y+r.h-1; else if(side===2) x = r.x; else x = r.x+r.w-1;
+      if(g[y][x] !== '.' || Math.abs(x-S.cx)+Math.abs(y-S.cy) < 3) continue;
+      const ch = ['B','X','o','o'][ri(0,3)];
+      g[y][x] = ch;
+      const reach = bfsTiles(g, S.cx, S.cy, solidCh);
+      if(reach.size < baseReach - 1 || !reach.has(far.cy*w+far.cx)) g[y][x] = '.';
+    }
+    if(r.w >= 9 && r.h >= 7 && Math.random() < 0.5){
+      for(const [x,y] of [[r.x+2,r.y+2],[r.x+r.w-3,r.y+2]]){
+        if(g[y][x] !== '.') continue; g[y][x] = 'L';
+        const reach = bfsTiles(g, S.cx, S.cy, solidCh); if(!reach.has(far.cy*w+far.cx) || reach.size < baseReach - 3) g[y][x] = '.';
+      }
+    }
+  }
+  return g.map(row=>row.join(''));
+}
 
 const ITEMS = {
   herb:     { name:'Healing Herb',   kind:'Herb', color:'#7fe06a' },
@@ -384,12 +563,51 @@ function batFrames(){
   }
   return out;
 }
+// Chua Doi: doi lon ve cung mat do pixel (khong phong to pixel)
+function batLordFrames(){
+  const w = 116, h = 76, out = [];
+  for(const up of [true, false]){
+    out.push(pixelSprite(w, h, (x,y)=>{
+      const cx = 58, cy = 34, X = x+0.5, Y = y+0.5;
+      // than
+      const bx = (X-cx)/15, by = (Y-cy)/19;
+      if(bx*bx + by*by <= 1){
+        if(Math.abs(X-cx) <= 6 && Y > cy+6 && Y < cy+10) return '#ffd0d8';           // nanh/bung
+        for(const sx of [-6, 6]) if(Math.abs(X-(cx+sx)) <= 2 && Math.abs(Y-(cy-5)) <= 1.6) return Math.abs(X-(cx+sx)) <= 0.8 && Y < cy-5 ? '#ffffff' : '#ff2a4a';
+        if(Y > cy + 11) return '#4a1430';
+        return Y < cy - 9 ? '#a83a5e' : '#7a2446';
+      }
+      // tai nhon
+      for(const sx of [-1, 1]){ const ex = cx + sx*9, t = (cy-12 - Y)/14; if(t >= 0 && t <= 1 && Math.abs(X-ex + sx*t*3) <= 4.5*(1-t)) return t > 0.6 ? '#c84a70' : '#7a2446'; }
+      // vuong mien nho
+      if(Y >= cy-22 && Y <= cy-17 && Math.abs(X-cx) <= 5){ if(Y < cy-19 && Math.abs(X-cx) % 3 > 1.2) return null; return '#f3c45a'; }
+      // canh
+      const ax = Math.abs(X-cx);
+      if(ax > 13 && ax < 57){
+        const t = (ax-13)/44;
+        const top = up ? cy - 6 - t*26 : cy - 4 + t*6;
+        const scal = Math.abs(Math.sin(ax*0.36))*6;
+        const bot = up ? cy + 10 - t*10 + scal : cy + 14 + t*16 - scal*0.8;
+        if(Y >= top && Y <= bot){
+          if(Math.abs(((ax-13) % 11) - 0) < 1 && Y < bot - 2) return '#3a0c22';      // xuong canh
+          return Y > bot - 3 ? '#4a1430' : '#6a1e3c';
+        }
+      }
+      return null;
+    }, '#14040c'));
+  }
+  return out;
+}
 const SPR = {};
 function buildMonsterSprites(){
   SPR.slime = slimeFrames(36, 26, '#5fc85a', '#3a9440', '#a6ee82', '#16351a', false);
+  SPR.spitter = slimeFrames(36, 26, '#b05ad8', '#7a3a9a', '#d8a0f0', '#2a1036', false);
+  SPR.brute = slimeFrames(50, 36, '#3aa0a0', '#24706e', '#7ee0d8', '#0e2a2a', false);
   SPR.bat = batFrames();
+  SPR.batlord = batLordFrames();
   SPR.boss = slimeFrames(112, 100, '#7a4fc8', '#4f2f8e', '#b08af0', '#1c0e33', true, 0.42);
-  for(const k of ['slime','bat','boss']){
+  SPR.emperor = slimeFrames(112, 100, '#c8443a', '#8a2626', '#ff8a6a', '#2a0808', true, 0.42);
+  for(const k of ['slime','spitter','brute','bat','batlord','boss','emperor']){
     SPR[k+'White'] = SPR[k].map(f=>silhouette(f,'#ffffff'));
     SPR[k+'Ice']   = SPR[k].map(f=>silhouette(f,'#8fdcff'));
     SPR[k+'Fire']  = SPR[k].map(f=>silhouette(f,'#ff8a2a'));
@@ -399,6 +617,9 @@ function buildMonsterSprites(){
 
 // icon vat pham 14px
 const ICON = {
+  gold: gridSprite([
+    '..yyyy..','.yYYYYy.','yYYwYYYo','yYwYYYYo','yYYYYYYo','yYYYYYYo','.oYYYYo.','..oooo..'],
+    {y:'#b07a10',Y:'#ffd84a',w:'#fff6c8',o:'#7a5008'}),
   herb: gridSprite([
     '......gg......','.....gGGg.....','..gg.gGGg.gg..','.gGGggGGggGGg.','.gGGGgGGgGGGg.','..gGGGGGGGGg..',
     '...ggGGGGgg...','.....gGGg.....','......bb......','......bb......','.....b..b.....'],
@@ -438,20 +659,34 @@ function drawProp(key, x, y, g){
 let G = null;            // trang thai luot choi hien tai
 let pick = { id:'virgo', el:'ice' };
 try{ const s = JSON.parse(localStorage.getItem('astraeum-dungeon-pick')||'null'); if(s && s.id) pick = s; }catch(e){}
-let mode = 'select';     // select | play | pause | dead | win
+let mode = 'lobby';      // lobby | select | play | pause | shop | dead | win
 const keys = {}, keyTime = {}, pressed = new Set();
 
-function newRun(){
-  G = { el:pick.el, floorIdx:0, kills:0, chests:0, time:0, inv:{herb:0,mushroom:0,amethyst:0,sapphire:0}, found:{herb:0,mushroom:0,amethyst:0,sapphire:0} };
-  startFloor(0, true);
+function blankRun(){
+  return { char:pick.id, el:pick.el, floorIdx:0, kills:0, chests:0, time:0, gold:0, goldFound:0,
+    inv:{herb:0,mushroom:0,amethyst:0,sapphire:0}, found:{herb:0,mushroom:0,amethyst:0,sapphire:0},
+    up:{vit:0, wpn:0, spell:0, stam:0} };
 }
+function newRun(){
+  G = blankRun();
+  startFloor(0, null);
+}
+// nang cap mua o tru ban do
+const maxHpOf = ()=> TUNE.playerHp + 20*G.up.vit;
+const stamMax = ()=> TUNE.stamina + 25*G.up.stam;
+const wpnMul = ()=> 1 + 0.2*G.up.wpn;
+const spellMul = ()=> 1 + 0.2*G.up.spell;
 
-function startFloor(idx, fresh){
+// hp: so mau khi vao tang (null = day mau)
+function startFloor(idx, hp){
   G.floorIdx = idx;
-  const F = FLOORS[idx];
-  const grid = F.map.map(r=>r.split(''));
+  const n = idx + 1, F = floorDef(n);
+  G.F = F;
+  G.hpMul = 1 + TUNE.scaleHp*(n-1); G.dmgMul = 1 + TUNE.scaleDmg*(n-1); G.spdMul = 1 + TUNE.scaleSpeed*(n-1);
+  const grid = floorMap(n).map(r=>r.split(''));
   const L = { grid, w:grid[0].length, h:grid.length, enemies:[], chests:[], pickups:[], props:[], solids:[], torches:[],
-    stairs:null, boss:null, bolts:[], bullets:[], parts:[], texts:[], lights:[], rings:[], novas:[], scorches:[], swings:[] };
+    stairs:null, lobby:null, shop:null, boss:null, bossSpawn:null, tint:F.tint,
+    bolts:[], bullets:[], parts:[], texts:[], lights:[], rings:[], novas:[], scorches:[], swings:[] };
   let start = {x:64,y:64};
   for(let ty=0; ty<L.h; ty++) for(let tx=0; tx<L.w; tx++){
     const ch = grid[ty][tx], cx = tx*TS+16, cy = ty*TS+24;
@@ -460,7 +695,10 @@ function startFloor(idx, fresh){
     if(ch === 'P') start = {x:cx, y:cy};
     else if(ch === 's') L.enemies.push(makeEnemy('slime', cx, cy));
     else if(ch === 'b') L.enemies.push(makeEnemy('bat', cx, cy));
-    else if(ch === 'K'){ const b = makeEnemy('boss', cx, cy+20); L.enemies.push(b); L.boss = b; }
+    else if(ch === 'p') L.enemies.push(makeEnemy('spitter', cx, cy));
+    else if(ch === 'g') L.enemies.push(makeEnemy('brute', cx, cy));
+    else if(ch === 'K'){ if(F.boss){ const b = makeBoss(F.boss, cx, cy+20); L.enemies.push(b); L.boss = b; L.bossSpawn = {x:cx, y:cy+20}; } }
+    else if(ch === 'S'){ L.shop = {x:cx, y:cy}; L.solids.push({x:cx-12, y:cy-10, w:24, h:10}); }
     else if(ch === 'C') L.chests.push({x:cx, y:cy, open:false});
     else if('hmaz'.includes(ch)) L.pickups.push(makePickup({h:'herb',m:'mushroom',a:'amethyst',z:'sapphire'}[ch], cx, cy-6));
     else if(ch === '>') L.stairs = {x:tx*TS+16, y:ty*TS+16};
@@ -475,27 +713,47 @@ function startFloor(idx, fresh){
     if(grid[ty][tx]==='#' && grid[ty+1][tx]==='.' && grid[ty-1][tx]==='#' && (tx*7+ty*3)%5===0) L.torches.push({x:tx*TS+16, y:ty*TS+14, ph:Math.random()*6});
   }
   L.ground = buildGround(L);
-  const keepHp = !fresh && G.player ? G.player.hp : TUNE.playerHp;
-  G.player = { x:start.x, y:start.y, hp: fresh ? TUNE.playerHp : Math.max(keepHp, 40), maxHp:TUNE.playerHp,
-    face:'s', moving:false, frame:0, stride:0, inv:0, cd:0, novaCd:0, kx:0, ky:0, casting:0, wcd:0, swapCd:0, atk:0, atkMax:1, stam:TUNE.stamina, stamWait:0, dodge:0, dodgeGap:0, dvx:0, dvy:0, ghosts:[], shield:0, shieldCd:0, blockT:0 };
-  G.floorStart = { inv:{...G.inv}, found:{...G.found}, kills:G.kills, chests:G.chests, hp:G.player.hp };
+  const mhp = maxHpOf();
+  G.player = { x:start.x, y:start.y, hp: hp == null ? mhp : clamp(Math.round(hp), 1, mhp), maxHp:mhp,
+    face:'s', moving:false, frame:0, stride:0, inv:0, cd:0, novaCd:0, kx:0, ky:0, casting:0, wcd:0, swapCd:0, atk:0, atkMax:1, stam:stamMax(), stamWait:0, dodge:0, dodgeGap:0, dvx:0, dvy:0, ghosts:[], shield:0, shieldCd:0, blockT:0 };
+  G.floorStart = { inv:{...G.inv}, found:{...G.found}, kills:G.kills, chests:G.chests, hp:G.player.hp, gold:G.gold, goldFound:G.goldFound, up:{...G.up}, el:G.el, time:G.time };
+  G.floorT0 = G.time;
   G.L = L; G.cam = { x:start.x-W/2, y:start.y-H/2, shake:0 };
-  G.banner = { text:FLOORS[idx].name, t:150 };
-  G.fade = 1; G.bossAwake = false; G.winT = 0;
+  G.banner = { text:F.name, t:150 };
+  G.fade = 1; G.bossAwake = false; G.winT = 0; G.portalT = 0;
   snapCam(true);
+  saveRun();   // tu dong luu khi vao tang moi
 }
 function retryFloor(){
-  Object.assign(G, { inv:{...G.floorStart.inv}, found:{...G.floorStart.found}, kills:G.floorStart.kills, chests:G.floorStart.chests });
-  startFloor(G.floorIdx, true);
+  const s = G.floorStart;
+  Object.assign(G, { inv:{...s.inv}, found:{...s.found}, kills:s.kills, chests:s.chests, gold:s.gold, goldFound:s.goldFound, up:{...s.up}, el:s.el, time:s.time });
+  startFloor(G.floorIdx, s.hp);
 }
 
+const CY_OFF = { slime:11, spitter:11, brute:15, bat:22, boss:34, batlord:40 };
 function makeEnemy(type, x, y){
-  const T = TUNE[type];
-  return { type, x, y, hp:T.hp, maxHp:T.hp, r:T.r, vx:0, vy:0, t:Math.floor(Math.random()*60), state:'idle',
+  const T = TUNE[type], hp = Math.round(T.hp * (G.hpMul||1));
+  return { type, spr:type, x, y, hp, maxHp:hp, r:T.r, dmg:Math.round(T.dmg*(G.dmgMul||1)), spd:(G.spdMul||1), cyOff:CY_OFF[type],
+    vx:0, vy:0, t:Math.floor(Math.random()*60), state:'idle',
     flash:0, slow:0, burn:0, burnTick:0, frame:0, hop:0, dead:false, face:1, phase:1, atk:null, atkT:0, summonT:600 };
 }
-function makePickup(kind, x, y, vx, vy){
-  return { kind, x, y, z: vy!==undefined ? 0 : 0, vx:vx||0, vy:vy||0, vz: vy!==undefined ? -3.2 : 0, h: vy!==undefined ? 0.01 : 0, bob:Math.random()*6, delay: vy!==undefined ? 30 : 0 };
+function makeBoss(def, x, y){
+  const T = TUNE[def.type];
+  return { type:def.type, spr:def.spr, name:def.name, tier:def.tier, isBoss:true, x, y, hp:def.hp, maxHp:def.hp, r:T.r,
+    dmg:Math.round(T.dmg*(1 + 0.25*(def.tier-1))), spd:1, cyOff:CY_OFF[def.type], z:0,
+    vx:0, vy:0, t:0, state:'idle', flash:0, slow:0, burn:0, burnTick:0, frame:0, hop:0, dead:false, face:1, phase:1, atk:null, atkT:60, summonT:600 };
+}
+function makePickup(kind, x, y, vx, vy, v){
+  return { kind, v:v||1, x, y, z: vy!==undefined ? 0 : 0, vx:vx||0, vy:vy||0, vz: vy!==undefined ? -3.2 : 0, h: vy!==undefined ? 0.01 : 0, bob:Math.random()*6, delay: vy!==undefined ? 30 : 0 };
+}
+// rot xu vang: chia thanh vai dong xu bay ra
+function dropGold(x, y, total){
+  total = Math.max(1, Math.round(total));
+  const n = clamp(Math.ceil(total/6), 1, 10);
+  for(let i=0;i<n;i++){
+    const v = Math.floor(total/n) + (i < total%n ? 1 : 0), a = Math.random()*Math.PI*2;
+    G.L.pickups.push(makePickup('gold', x, y, Math.cos(a)*rand(0.6,1.6), Math.sin(a)*0.8+0.5, v));
+  }
 }
 
 // =====================================================================
@@ -518,6 +776,7 @@ function buildGround(L){
       g.fillStyle = 'rgba(20,14,30,' + (0.18 + sr()*0.18).toFixed(2) + ')'; g.fillRect(X, Y, TS, TS);
       if(sr() < 0.22){ g.fillStyle = 'rgba(30,24,40,0.5)'; const cx = X+4+sr()*20, cy = Y+4+sr()*20; for(let i=0;i<5;i++) g.fillRect(Math.round(cx+i), Math.round(cy+(i%2)), 1, 1); }
       if(sr() < 0.08){ g.fillStyle = 'rgba(90,140,70,0.35)'; g.fillRect(X+Math.floor(sr()*26), Y+Math.floor(sr()*26), 3, 2); }
+      if(L.tint){ g.fillStyle = L.tint; g.fillRect(X, Y, TS, TS); }
     }
   }
   for(let ty=0; ty<L.h; ty++) for(let tx=0; tx<L.w; tx++){
@@ -625,7 +884,7 @@ function updatePlayer(){
     else text(P.x, P.y-64, 'Too tired', '#a79cbf');
   }
   if(P.stamWait > 0) P.stamWait--;
-  else if(P.dodge <= 0) P.stam = Math.min(TUNE.stamina, P.stam + TUNE.stamRegen);
+  else if(P.dodge <= 0) P.stam = Math.min(stamMax(), P.stam + TUNE.stamRegen);
   if(P.dodgeGap > 0) P.dodgeGap--;
   for(const g of P.ghosts) g.life--;
   P.ghosts = P.ghosts.filter(g=>g.life > 0);
@@ -717,14 +976,14 @@ function weaponAttack(){
     const h = handPos();
     for(let i=0;i<Wp.count;i++){
       const a = ang + (i-(Wp.count-1)/2)*Wp.spread;
-      G.L.bolts.push({ x:h.x, y:h.y, vx:Math.cos(a)*Wp.speed, vy:Math.sin(a)*Wp.speed, life:55, el:null, proj:Wp.proj, dmg:Wp.dmg, ang:a, spin:0 });
+      G.L.bolts.push({ x:h.x, y:h.y, vx:Math.cos(a)*Wp.speed, vy:Math.sin(a)*Wp.speed, life:55, el:null, proj:Wp.proj, dmg:Wp.dmg*wpnMul(), ang:a, spin:0 });
     }
     return;
   }
   const hits = Wp.hits || 1;
   for(let i=0;i<hits;i++){
     // song vu khi: nhat thu 2 chem nguoc chieu
-    G.L.swings.push({ delay:i*7, t:0, max: Wp.type==='arc' ? 12 : 9, type:Wp.type, ang, range:Wp.range, arc:Wp.arc, dmg:Wp.dmg, kb:Wp.kb,
+    G.L.swings.push({ delay:i*7, t:0, max: Wp.type==='arc' ? 12 : 9, type:Wp.type, ang, range:Wp.range, arc:Wp.arc, dmg:Wp.dmg*wpnMul(), kb:Wp.kb,
       dir: i%2 ? -1 : 1, prongs:Wp.prongs||1, hit:new Set(), done:false });
   }
 }
@@ -781,7 +1040,7 @@ function handPos(){
 function castBolt(){
   const P = G.player, v = FACE_V[P.face], h = handPos(), E = EL[G.el];
   P.cd = TUNE.boltCd; P.casting = 8;
-  G.L.bolts.push({ x:h.x, y:h.y, vx:v[0]*TUNE.boltSpeed, vy:v[1]*TUNE.boltSpeed, life:70, el:G.el, dmg:TUNE.boltDmg, ang:Math.atan2(v[1],v[0]), spin:0 });
+  G.L.bolts.push({ x:h.x, y:h.y, vx:v[0]*TUNE.boltSpeed, vy:v[1]*TUNE.boltSpeed, life:70, el:G.el, dmg:TUNE.boltDmg*spellMul(), ang:Math.atan2(v[1],v[0]), spin:0 });
   for(let i=0;i<6;i++) part({x:h.x, y:h.y, vx:v[0]*rand(0.5,2)+rand(-1,1), vy:v[1]*rand(0.5,2)+rand(-1,1), life:rand(10,16), size:rand(1.5,3),
     color:E.mid, kind: G.el==='fire' ? 'flame' : 'sq', add:true});
   light(h.x, h.y, 60, E.light, 0.9);
@@ -831,6 +1090,8 @@ function interact(){
   for(const c of L.chests){
     if(!c.open && dist(P.x,P.y,c.x,c.y) < 46){ openChest(c); return; }
   }
+  if(L.shop && dist(P.x, P.y, L.shop.x, L.shop.y) < 50){ openShop(); return; }
+  if(L.lobby && dist(P.x, P.y, L.lobby.x, L.lobby.y+8) < 40){ enterLobbyPortal(); return; }
   if(L.stairs && dist(P.x, P.y, L.stairs.x, L.stairs.y+8) < 40) nextFloor();
 }
 function openChest(c){
@@ -844,32 +1105,74 @@ function openChest(c){
   for(let i=0;i<20;i++) part({x:c.x+rand(-10,10), y:c.y-18, vx:rand(-1.5,1.5), vy:rand(-3,-0.5), life:rand(26,40), size:rand(1,2.5), color:['#ffe39a','#ffffff','#f3c45a'][i%3], add:true, grav:0.06, kind:i%3===0?'glint':'sq'});
   light(c.x, c.y-16, 110, '#ffd27a', 1);
   text(c.x, c.y-40, 'Chest opened!', '#f3c45a', true);
+  dropGold(c.x, c.y-14, (12 + G.floorIdx*3) * rand(0.8, 1.3));
 }
 function nextFloor(){
-  if(G.floorIdx + 1 >= FLOORS.length) return;
-  G.time += 0; startFloor(G.floorIdx + 1, false);
+  if(G.floorIdx + 1 >= FLOOR_COUNT) return;
+  if(!G.L.boss) recordFloor();          // tang boss da ghi khi ha boss
+  startFloor(G.floorIdx + 1, Math.max(G.player.hp, 40));
+}
+// cong vang sau boss: luu tien do (tang tiep theo) roi ve sanh cho
+function enterLobbyPortal(){
+  saveRun(G.floorIdx + 2, G.player.hp);
+  goLobby();
+}
+
+// =====================================================================
+//  LUU TRU: tien do luot choi + ky luc tung tang
+// =====================================================================
+const SAVE_KEY = 'astraeum-tower-save', REC_KEY = 'astraeum-tower-records';
+function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } }
+function storeJSON(k, v){ try{ if(v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+let RECORDS = loadJSON(REC_KEY) || { floors:{}, best:0, clears:0 };
+// luu o dau tang (floorNum: tang se choi khi "Choi tiep")
+function saveRun(floorNum, hp){
+  const st = G.floorStart, atStart = floorNum == null;
+  const src = atStart ? st : G;
+  storeJSON(SAVE_KEY, { v:2, char:G.char, el: atStart ? st.el : G.el, floor: atStart ? G.floorIdx+1 : floorNum,
+    hp: atStart ? st.hp : hp, gold:src.gold, goldFound:src.goldFound, inv:{...src.inv}, found:{...src.found}, up:{...src.up},
+    kills:src.kills, chests:src.chests, time:src.time, at:Date.now() });
+}
+function recordFloor(){
+  const n = G.floorIdx + 1, t = G.time - G.floorT0, k = G.kills - G.floorStart.kills, g = G.gold - G.floorStart.gold;
+  const r = RECORDS.floors[n] || { clears:0 };
+  r.clears++;
+  if(r.best == null || t < r.best){ r.best = t; r.char = G.char; r.kills = k; r.gold = g; }
+  RECORDS.floors[n] = r;
+  RECORDS.best = Math.max(RECORDS.best || 0, n);
+  if(n === FLOOR_COUNT) RECORDS.clears = (RECORDS.clears||0) + 1;
+  storeJSON(REC_KEY, RECORDS);
+}
+function continueRun(){
+  const S = loadJSON(SAVE_KEY); if(!S) return false;
+  pick.id = S.char; pick.el = S.el;
+  G = Object.assign(blankRun(), { char:S.char, el:S.el, gold:S.gold||0, goldFound:S.goldFound||0, inv:S.inv, found:S.found, up:S.up||{vit:0,wpn:0,spell:0,stam:0},
+    kills:S.kills||0, chests:S.chests||0, time:S.time||0 });
+  startFloor(S.floor - 1, S.hp);
+  return true;
 }
 
 // =====================================================================
 //  QUAI VAT
 // =====================================================================
-function enemyCenter(e){ return { x:e.x, y:e.y - (e.type==='boss' ? 34 : e.type==='bat' ? 22 : 11) - (e.z||0) }; }
+function enemyCenter(e){ return { x:e.x, y:e.y - e.cyOff - (e.z||0) }; }
 function damageEnemy(e, dmg, el, kx, ky){
   if(e.dead) return;
+  dmg = Math.max(1, Math.round(dmg));
   e.hp -= dmg; e.flash = 6;
   const c = enemyCenter(e);
-  text(c.x + rand(-6,6), c.y - (e.type==='boss'?44:18), String(dmg), el==='fire' ? '#ffb347' : el==='ice' ? '#bfefff' : '#ffffff');
+  text(c.x + rand(-6,6), c.y - (e.isBoss?44:18), String(dmg), el==='fire' ? '#ffb347' : el==='ice' ? '#bfefff' : '#ffffff');
   if(el && ((el==='fire' && e.slow > 0) || (el==='ice' && e.burn > 0))) steamBurst(e);
   else if(el) EL[el].status(e);
-  if(e.type !== 'boss'){ e.vx += kx*2.4; e.vy += ky*2.4; }
-  if(e.type === 'boss' && !G.bossAwake) wakeBoss();
+  if(!e.isBoss){ const kb = e.type==='brute' ? 1.2 : 2.4; e.vx += kx*kb; e.vy += ky*kb; }
+  if(e.isBoss && !G.bossAwake) wakeBoss();
   if(e.hp <= 0) killEnemy(e);
 }
 // phan ung nguyen to: lua trung muc tieu dang bi lam cham (hoac bang trung muc tieu dang chay) -> no hoi nuoc
 function steamBurst(src){
   src.slow = 0; src.burn = 0;
   const c = enemyCenter(src);
-  text(c.x, c.y - (src.type==='boss'?60:32), 'STEAM BURST!', '#e8f6ff', true);
+  text(c.x, c.y - (src.isBoss?60:32), 'STEAM BURST!', '#e8f6ff', true);
   for(let i=0;i<22;i++){ const a = Math.random()*Math.PI*2, s = rand(0.6,2.6);
     part({x:c.x, y:c.y, vx:Math.cos(a)*s, vy:Math.sin(a)*s*0.7-0.5, life:rand(30,50), size:rand(6,12), kind:'puff', color:'rgba(235,245,255,0.35)', drag:0.92, grav:-0.02}); }
   G.L.rings.push({x:c.x, y:c.y, r:6, max:TUNE.reactionRadius, life:18, maxLife:18, color:'#ffffff', w:3});
@@ -877,29 +1180,47 @@ function steamBurst(src){
   for(const e of G.L.enemies.slice()){
     if(e.dead) continue;
     const ec = enemyCenter(e);
-    if(e === src || dist(c.x, c.y, ec.x, ec.y) < TUNE.reactionRadius + e.r) damageEnemy(e, TUNE.reactionDmg, null, 0, 0);
+    if(e === src || dist(c.x, c.y, ec.x, ec.y) < TUNE.reactionRadius + e.r) damageEnemy(e, TUNE.reactionDmg*spellMul(), null, 0, 0);
   }
 }
+const KILL_COL = {
+  slime:['#5fc85a','#a6ee82','#3a9440'], spitter:['#b05ad8','#d8a0f0','#7a3a9a'], brute:['#3aa0a0','#7ee0d8','#24706e'],
+  bat:['#5a3a78','#8a5ab8','#2e1a3e'], boss:['#7a4fc8','#b08af0','#f3c45a'], batlord:['#8a2040','#d04a6a','#f3c45a'], emperor:['#c8443a','#ff8a6a','#f3c45a']
+};
+const GOLD_DROP = { slime:3, bat:3, spitter:5, brute:10 };
 function killEnemy(e){
   e.dead = true; G.kills++;
-  const c = enemyCenter(e), L = G.L;
-  const cols = e.type==='slime' ? ['#5fc85a','#a6ee82','#3a9440'] : e.type==='bat' ? ['#5a3a78','#8a5ab8','#2e1a3e'] : ['#7a4fc8','#b08af0','#f3c45a'];
-  const n = e.type==='boss' ? 70 : 16;
-  for(let i=0;i<n;i++){ const a = Math.random()*Math.PI*2, s = rand(0.8, e.type==='boss'?5:3);
-    part({x:c.x, y:c.y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-1, life:rand(20,40), size:rand(2,e.type==='boss'?6:4), color:cols[i%3], grav:0.12, drag:0.94}); }
-  light(c.x, c.y, e.type==='boss'?220:60, '#ffffff', 0.8);
-  if(e.type === 'boss'){
+  const c = enemyCenter(e), L = G.L, cols = KILL_COL[e.spr] || KILL_COL.slime;
+  const n = e.isBoss ? 70 : 16;
+  for(let i=0;i<n;i++){ const a = Math.random()*Math.PI*2, s = rand(0.8, e.isBoss?5:3);
+    part({x:c.x, y:c.y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-1, life:rand(20,40), size:rand(2,e.isBoss?6:4), color:cols[i%3], grav:0.12, drag:0.94}); }
+  light(c.x, c.y, e.isBoss?220:60, '#ffffff', 0.8);
+  if(e.isBoss){
     shake(12);
     for(let i=0;i<8;i++){ const a = Math.PI*2*i/8; L.pickups.push(makePickup(i%2 ? 'amethyst' : 'sapphire', c.x, c.y, Math.cos(a)*2, Math.sin(a)*1.2+0.6)); }
-    G.L.bullets.length = 0;
-    G.winT = 170;
-  } else if(Math.random() < 0.3){
-    L.pickups.push(makePickup(Math.random()<0.7 ? 'herb' : 'mushroom', e.x, e.y-8, rand(-0.8,0.8), 0.6));
+    dropGold(c.x, c.y, 80*e.tier);
+    L.bullets.length = 0;
+    // tieu diet luon dan em boss
+    for(const m of L.enemies) if(!m.dead && m !== e){ m.dead = true; const mc = enemyCenter(m); for(let i=0;i<10;i++) part({x:mc.x, y:mc.y, vx:rand(-2,2), vy:rand(-2,0), life:24, size:3, color:'#ffffff', add:true}); }
+    recordFloor();
+    if(G.floorIdx + 1 >= FLOOR_COUNT){ G.winT = 170; }
+    else { G.portalT = 80; G.banner = { text:'Floor ' + (G.floorIdx+1) + ' cleared!', t:150 }; }
+  } else {
+    if(Math.random() < (GOLD_DROP[e.type] ? 0.85 : 0)) dropGold(e.x, e.y-8, GOLD_DROP[e.type] * (1 + TUNE.scaleGold*G.floorIdx) * rand(0.7, 1.3));
+    if(Math.random() < 0.25) L.pickups.push(makePickup(Math.random()<0.7 ? 'herb' : 'mushroom', e.x, e.y-8, rand(-0.8,0.8), 0.6));
   }
+}
+// sau khi ha boss: mo cong ve sanh cho va cong len tang tiep
+function openBossPortals(){
+  const L = G.L, s = L.bossSpawn || {x:G.player.x, y:G.player.y};
+  const spots = [[-60,0],[60,0]].map(([dx,dy])=>({x:s.x+dx, y:s.y+dy-12}));
+  L.lobby = spots[0]; L.stairs = spots[1];
+  for(const p of spots){ L.rings.push({x:p.x, y:p.y+8, r:6, max:50, life:24, maxLife:24, color:'#ffe39a', w:3}); }
+  G.banner = { text:'Portals opened: lobby (gold) · next floor (purple)', t:170 };
 }
 function wakeBoss(){
   G.bossAwake = true;
-  G.banner = { text:'The Dungeon Slime King awakens!', t:130, boss:true };
+  G.banner = { text:'The ' + G.L.boss.name + ' awakens!', t:130, boss:true };
   shake(8);
 }
 function updateEnemies(){
@@ -907,20 +1228,26 @@ function updateEnemies(){
   for(const e of L.enemies){
     if(e.dead) continue;
     e.t++; if(e.flash > 0) e.flash--;
-    const spdMul = e.slow > 0 ? 0.45 : 1;
+    const spdMul = (e.slow > 0 ? 0.45 : 1) * (e.spd||1);
     if(e.slow > 0){ e.slow--; if(e.t%6===0){ const c=enemyCenter(e); part({x:c.x+rand(-e.r,e.r), y:c.y+rand(-e.r,e.r), vy:rand(-0.4,0), life:20, size:1.5, color:'#cdf3ff', add:true}); } }
     if(e.burn > 0){
       e.burn--; e.burnTick++;
       if(e.t%3===0){ const c=enemyCenter(e); part({x:c.x+rand(-e.r,e.r), y:c.y+rand(-e.r*0.5,e.r*0.5), vy:rand(-1,-0.4), life:rand(14,22), size:rand(2,3.5), kind:'flame', grav:-0.03}); }
-      if(e.burnTick >= 30){ e.burnTick = 0; damageEnemy(e, 4, null, 0, 0); if(e.dead) continue; }
+      if(e.burnTick >= 30){ e.burnTick = 0; damageEnemy(e, 4*spellMul(), null, 0, 0); if(e.dead) continue; }
     }
     const d = dist(e.x, e.y, P.x, P.y), ux = (P.x-e.x)/(d||1), uy = (P.y-e.y)/(d||1);
-    if(e.type === 'slime'){
-      const T = TUNE.slime;
+    if(e.type === 'slime' || e.type === 'spitter' || e.type === 'brute'){
+      const T = TUNE[e.type], big = e.type === 'brute';
       if(d < T.aggro) e.state = 'chase';
       if(e.state === 'chase'){
-        if(e.hop <= 0 && e.t % 64 === 0){ e.hop = 26; e.hx = ux; e.hy = uy; }
-        if(e.hop > 0){ e.hop--; moveBody(L, e, e.hx*T.speed*2.3*spdMul, e.hy*T.speed*2.3*spdMul, 11, 8); }
+        if(e.hop <= 0 && e.t % (big ? 80 : 64) === 0){ e.hop = 26; e.hx = ux; e.hy = uy; }
+        if(e.hop > 0){ e.hop--; moveBody(L, e, e.hx*T.speed*2.3*spdMul, e.hy*T.speed*2.3*spdMul, big?15:11, 8); }
+        // slime tim phun dich vao nguoi choi
+        if(e.type === 'spitter' && d < 280 && e.hop <= 0 && e.t % T.shootCd === 75){
+          const c = enemyCenter(e), a = Math.atan2(P.y-22-c.y, P.x-c.x);
+          bossBullet(c.x, c.y, a, 2.6, 'spit', e.dmg);
+          for(let i=0;i<6;i++) part({x:c.x, y:c.y, vx:Math.cos(a)*rand(0.5,2)+rand(-0.5,0.5), vy:Math.sin(a)*rand(0.5,2), life:14, size:2, color:'#d8a0f0', add:true});
+        }
       }
       e.frame = e.hop > 18 ? 3 : e.hop > 6 ? 2 : (e.hop > 0 ? 1 : (Math.floor(e.t/20)%2 ? 1 : 0));
     } else if(e.type === 'bat'){
@@ -932,24 +1259,43 @@ function updateEnemies(){
       e.frame = Math.floor(e.t/7)%2;
     } else if(e.type === 'boss'){
       updateBoss(e, d, ux, uy, spdMul);
+    } else if(e.type === 'batlord'){
+      updateBatLord(e, d, ux, uy, spdMul);
     }
     // day lui sau khi trung don
-    if(e.vx || e.vy){ moveBody(L, e, e.vx, e.vy, e.type==='boss'?30:10, 8); e.vx *= 0.75; e.vy *= 0.75; if(Math.abs(e.vx)<0.05) e.vx=0; if(Math.abs(e.vy)<0.05) e.vy=0; }
+    if(e.vx || e.vy){ moveBody(L, e, e.vx, e.vy, e.isBoss?30:10, 8); e.vx *= 0.75; e.vy *= 0.75; if(Math.abs(e.vx)<0.05) e.vx=0; if(Math.abs(e.vy)<0.05) e.vy=0; }
     if(Math.abs(ux) > 0.2) e.face = ux > 0 ? 1 : -1;
     // va cham voi nguoi choi
     const c = enemyCenter(e);
     if(e.type !== 'boss' || e.atk !== 'jump'){
-      if(dist(c.x, c.y, P.x, P.y-20) < e.r + 14) hurtPlayer(e.type==='boss' ? TUNE.boss.dmg : TUNE[e.type].dmg, c.x, c.y);
+      if(dist(c.x, c.y, P.x, P.y-20) < e.r + 14) hurtPlayer(e.dmg, c.x, c.y);
     }
   }
   L.enemies = L.enemies.filter(e=>!e.dead);
 }
-function bossBullet(x, y, a, s){ G.L.bullets.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:220}); }
+const BULLET_LOOK = {
+  boss:  { glow0:'rgba(200,140,255,0.9)', glow1:'rgba(140,60,255,0)', core:'#2a0e4a', hi:'#e6c8ff', part:'#c08aff', light:'#b070ff' },
+  spit:  { glow0:'rgba(220,150,255,0.9)', glow1:'rgba(170,60,220,0)', core:'#3a1048', hi:'#f4d8ff', part:'#d8a0f0', light:'#c070f0' },
+  blood: { glow0:'rgba(255,120,140,0.9)', glow1:'rgba(220,40,70,0)',  core:'#4a0a18', hi:'#ffd0d8', part:'#ff7a8a', light:'#ff5a6a' },
+  ember: { glow0:'rgba(255,170,110,0.9)', glow1:'rgba(230,70,40,0)',  core:'#4a1408', hi:'#ffe0c0', part:'#ff9a6a', light:'#ff7a40' }
+};
+function bossBullet(x, y, a, s, look, dmg){ G.L.bullets.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:220, look:look||'boss', dmg: dmg || Math.round(TUNE.bulletDmg*(G.dmgMul||1))}); }
+function bossEnrage(b, txt){ b.phase = 2; G.banner = { text:txt, t:110, boss:true }; shake(8); }
+function summonAround(b, type, count, dist0){
+  const L = G.L;
+  for(let i=0;i<count;i++){
+    const a = Math.PI*2*i/count + Math.random(), x = b.x + Math.cos(a)*dist0, y = b.y + Math.sin(a)*dist0*0.6 + 10;
+    if(blocked(L, x, y, 11, 8, false)) continue;
+    const m = makeEnemy(type, x, y); m.state = 'chase'; L.enemies.push(m);
+    for(let j=0;j<12;j++) part({x, y:y-10, vx:rand(-1.5,1.5), vy:rand(-2,0), life:24, size:3, color:(KILL_COL[type]||KILL_COL.slime)[1], grav:0.1});
+  }
+}
+// Vua Slime (tang 5) va Hoang De Slime (tang 15, tier 3: dan day hon, goi slime tim)
 function updateBoss(b, d, ux, uy, spdMul){
-  const L = G.L, P = G.player, T = TUNE.boss;
+  const L = G.L, P = G.player, tier = b.tier || 1;
   if(!G.bossAwake){ if(d < 260) wakeBoss(); b.frame = Math.floor(b.t/30)%2; return; }
-  if(b.phase === 1 && b.hp < b.maxHp*0.5){ b.phase = 2; G.banner = { text:'The Slime King is enraged!', t:110, boss:true }; shake(8); }
-  const fast = b.phase === 2 ? 0.7 : 1;
+  if(b.phase === 1 && b.hp < b.maxHp*(tier >= 3 ? 0.6 : 0.5)) bossEnrage(b, 'The ' + b.name + ' is enraged!');
+  const fast = (b.phase === 2 ? 0.7 : 1) * (tier >= 3 ? 0.8 : 1);
   b.atkT--;
   if(!b.atk){
     moveBody(L, b, ux*0.55*spdMul, uy*0.55*spdMul, 30, 10);
@@ -964,9 +1310,9 @@ function updateBoss(b, d, ux, uy, spdMul){
   } else if(b.atk === 'volley'){
     b.frame = 3;
     if(b.atkT === 0){
-      const c = enemyCenter(b), n = b.phase===2 ? 16 : 12, off = Math.random()*Math.PI;
-      for(let i=0;i<n;i++) bossBullet(c.x, c.y, off + Math.PI*2*i/n, 2.2);
-      if(b.phase === 2) setTimeout(()=>{ if(!b.dead && mode==='play') for(let i=0;i<n;i++) bossBullet(b.x, b.y-36, off + Math.PI*(2*i+1)/n, 1.8); }, 380);
+      const c = enemyCenter(b), n = (b.phase===2 ? 16 : 12) + (tier-1)*3, off = Math.random()*Math.PI, look = tier >= 3 ? 'ember' : 'boss';
+      for(let i=0;i<n;i++) bossBullet(c.x, c.y, off + Math.PI*2*i/n, 2.2 + (tier-1)*0.15, look);
+      if(b.phase === 2) b.second = { t:23, off, n, look };
       shake(3); b.atk = null; b.atkT = Math.round(110*fast);
     }
   } else if(b.atk === 'jump'){
@@ -980,22 +1326,75 @@ function updateBoss(b, d, ux, uy, spdMul){
     } else if(t === 75){                               // tiep dat
       b.z = 0; b.frame = 3; shake(9);
       for(let i=0;i<24;i++){ const a = Math.random()*Math.PI*2; part({x:b.x+Math.cos(a)*30, y:b.y+Math.sin(a)*10, vx:Math.cos(a)*rand(1,3), vy:Math.sin(a)*rand(0.5,1.5)-1, life:rand(20,34), size:rand(3,6), kind:'smoke', color:'rgba(120,110,130,0.5)'}); }
-      G.L.rings.push({x:b.x, y:b.y-6, r:10, max:96, life:20, maxLife:20, color:'#d8b8ff', w:4});
-      if(dist(b.x, b.y, P.x, P.y) < 92) hurtPlayer(T.dmg + 4, b.x, b.y);
-      const n = b.phase===2 ? 10 : 6;
-      for(let i=0;i<n;i++) bossBullet(b.x, b.y-20, Math.PI*2*i/n, 2.0);
+      G.L.rings.push({x:b.x, y:b.y-6, r:10, max:96, life:20, maxLife:20, color: tier>=3 ? '#ffb08a' : '#d8b8ff', w:4});
+      if(dist(b.x, b.y, P.x, P.y) < 92) hurtPlayer(b.dmg + 4, b.x, b.y);
+      const n = (b.phase===2 ? 10 : 6) + (tier-1)*2;
+      for(let i=0;i<n;i++) bossBullet(b.x, b.y-20, Math.PI*2*i/n, 2.0, tier >= 3 ? 'ember' : 'boss');
     }
     if(b.atkT <= 0){ b.atk = null; b.z = 0; b.atkT = Math.round(90*fast); }
   } else if(b.atk === 'summon'){
     b.frame = 3;
     if(b.atkT === 0){
-      for(const s of [-1,1]){
-        const x = b.x + s*70, y = b.y + 10;
-        if(!blocked(L, x, y, 11, 8, false)){ const m = makeEnemy('slime', x, y); m.state = 'chase'; L.enemies.push(m);
-          for(let i=0;i<12;i++) part({x, y:y-10, vx:rand(-1.5,1.5), vy:rand(-2,0), life:24, size:3, color:'#a6ee82', grav:0.1}); }
-      }
+      summonAround(b, tier >= 3 ? 'spitter' : 'slime', tier >= 3 ? 3 : 2, 70);
       b.summonT = 900; b.atk = null; b.atkT = Math.round(80*fast);
     }
+  }
+  // loat dan thu 2 lech pha (giai doan 2)
+  if(b.second){ if(--b.second.t <= 0){ const s2 = b.second; b.second = null; for(let i=0;i<s2.n;i++) bossBullet(b.x, b.y-36, s2.off + Math.PI*(2*i+1)/s2.n, 1.8, s2.look); } }
+  if(b.summonT > 0) b.summonT--;
+}
+// Chua Doi (tang 10): bay luon, ban quat, het vong, lao xuyen, goi doi
+function updateBatLord(b, d, ux, uy, spdMul){
+  const L = G.L, P = G.player;
+  b.z = 18 + Math.sin(b.t*0.08)*5;
+  const dashing = b.atk === 'dash';
+  b.frame = Math.floor(b.t/(dashing ? 3 : 7))%2;
+  if(!G.bossAwake){ if(d < 280) wakeBoss(); return; }
+  if(b.phase === 1 && b.hp < b.maxHp*0.5) bossEnrage(b, 'The Bat Lord is enraged!');
+  const fast = b.phase === 2 ? 0.65 : 1, c = enemyCenter(b);
+  b.atkT--;
+  if(!b.atk){
+    // giu khoang cach ~150px, luon vong quanh nguoi choi
+    const k = d > 170 ? 1 : d < 120 ? -0.7 : 0, s = Math.sin(b.t*0.02) > 0 ? 1 : -1;
+    moveBody(L, b, (ux*k - uy*s*0.8)*1.3*spdMul, (uy*k + ux*s*0.8)*1.3*spdMul, 28, 10);
+    if(b.atkT <= 0){
+      const opts = ['fan','swoop','ring','fan','swoop'];
+      if(b.phase === 2 && b.summonT <= 0) opts.push('summon');
+      b.atk = opts[Math.floor(Math.random()*opts.length)];
+      b.atkT = b.atk === 'fan' ? 26 : b.atk === 'ring' ? 40 : b.atk === 'swoop' ? 48 : 30;
+      b.burst = b.phase === 2 ? 2 : 1;
+      if(b.atk === 'swoop'){ b.jx = P.x; b.jy = P.y - 10; }
+    }
+  } else if(b.atk === 'fan'){
+    if(b.atkT === 0){
+      const a = Math.atan2(P.y-22-c.y, P.x-c.x), n = b.phase === 2 ? 7 : 5;
+      for(let i=0;i<n;i++) bossBullet(c.x, c.y, a + (i-(n-1)/2)*0.2, 3.0, 'blood');
+      if(--b.burst > 0) b.atkT = 18; else { b.atk = null; b.atkT = Math.round(70*fast); }
+    }
+  } else if(b.atk === 'ring'){
+    if(b.atkT % 8 === 0) G.L.rings.push({x:c.x, y:c.y, r:8, max:60, life:12, maxLife:12, color:'#ff8aa8', w:2});
+    if(b.atkT === 0){
+      const n = b.phase === 2 ? 24 : 18, off = Math.random();
+      for(let i=0;i<n;i++) bossBullet(c.x, c.y, off + Math.PI*2*i/n, 2.1, 'blood');
+      shake(4); b.atk = null; b.atkT = Math.round(100*fast);
+    }
+  } else if(b.atk === 'swoop'){
+    // bao truoc huong lao, roi lao xuyen qua
+    b.jx += (P.x - b.jx)*0.04; b.jy += (P.y - 10 - b.jy)*0.04;
+    if(b.atkT <= 0){
+      const dd = dist(b.x, b.y, b.jx, b.jy) || 1;
+      b.dvx = (b.jx-b.x)/dd; b.dvy = (b.jy-b.y)/dd; b.atk = 'dash'; b.atkT = 36;
+    }
+  } else if(b.atk === 'dash'){
+    const sp = 7.5*(b.slow > 0 ? 0.6 : 1);
+    const ok = moveBody(L, b, b.dvx*sp, b.dvy*sp, 28, 10);
+    if(G.time % 2 === 0) part({x:c.x+rand(-20,20), y:c.y+rand(-8,8), vx:-b.dvx, vy:-b.dvy, life:16, size:rand(3,5), color:'#8a2040', kind:'puff'});
+    if(!ok || b.atkT <= 0){
+      if(!ok){ shake(5); const n = b.phase === 2 ? 10 : 6; for(let i=0;i<n;i++) bossBullet(c.x, c.y, Math.PI*2*i/n, 2.0, 'blood'); }
+      b.atk = null; b.atkT = Math.round(80*fast);
+    }
+  } else if(b.atk === 'summon'){
+    if(b.atkT === 0){ summonAround(b, 'bat', 3, 60); b.summonT = 800; b.atk = null; b.atkT = Math.round(70*fast); }
   }
   if(b.summonT > 0) b.summonT--;
 }
@@ -1029,18 +1428,19 @@ function updateCombat(){
     for(const e of L.enemies){
       if(e.dead || n.hit.has(e)) continue;
       const c = enemyCenter(e), dx = c.x-n.x, dy = (c.y-n.y)/0.6;
-      if(Math.hypot(dx,dy) < n.r + e.r){ n.hit.add(e); const d = Math.hypot(dx,dy)||1; damageEnemy(e, TUNE.novaDmg, n.el, dx/d*1.5, dy/d*1.5); E.impact(c.x, c.y, false); }
+      if(Math.hypot(dx,dy) < n.r + e.r){ n.hit.add(e); const d = Math.hypot(dx,dy)||1; damageEnemy(e, TUNE.novaDmg*spellMul(), n.el, dx/d*1.5, dy/d*1.5); E.impact(c.x, c.y, false); }
     }
   }
   L.novas = L.novas.filter(n=>n.life > 0);
 
   for(const b of L.bullets){
     b.x += b.vx; b.y += b.vy; b.life--;
-    if(Math.random()<0.4) part({x:b.x, y:b.y, vx:rand(-0.3,0.3), vy:rand(-0.3,0.3), life:14, size:2, color:'#c08aff', add:true});
-    light(b.x, b.y, 36, '#b070ff', 0.7);
-    if(blocked(L, b.x, b.y+4, 2, 2, false)){ b.life = 0; for(let i=0;i<5;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:14,size:2,color:'#c08aff',add:true}); }
+    const BL = BULLET_LOOK[b.look] || BULLET_LOOK.boss;
+    if(Math.random()<0.4) part({x:b.x, y:b.y, vx:rand(-0.3,0.3), vy:rand(-0.3,0.3), life:14, size:2, color:BL.part, add:true});
+    light(b.x, b.y, 36, BL.light, 0.7);
+    if(blocked(L, b.x, b.y+4, 2, 2, false)){ b.life = 0; for(let i=0;i<5;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:14,size:2,color:BL.part,add:true}); }
     else if(P.shield > 0 && dist(b.x, b.y, P.x, P.y-22) < 30){ b.life = 0; for(let i=0;i<6;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:14,size:2,color:'#ffe39a',add:true}); }
-    else if(P.dodge <= 0 && dist(b.x, b.y, P.x, P.y-22) < 13){ b.life = 0; hurtPlayer(10, b.x, b.y); }
+    else if(P.dodge <= 0 && dist(b.x, b.y, P.x, P.y-22) < 13){ b.life = 0; hurtPlayer(b.dmg, b.x, b.y); }
     else if(P.dodge > 0 && dist(b.x, b.y, P.x, P.y-22) < 13 && P.blockT <= 0){ P.blockT = 20; text(P.x, P.y-64, 'Dodged!', '#cdf3ff'); }
   }
   L.bullets = L.bullets.filter(b=>b.life > 0);
@@ -1050,11 +1450,21 @@ function updateCombat(){
     if(k.vz || k.h > 0){ k.x += k.vx; k.y += k.vy; k.h -= k.vz; k.vz += 0.22; if(k.h <= 0){ k.h = 0; k.vz = 0; k.vx = 0; k.vy = 0; } }
     if(k.delay > 0){ k.delay--; continue; }
     const d = dist(k.x, k.y, P.x, P.y-10);
-    if(d < 64 && d > 1){ k.x += (P.x-k.x)/d*2.6; k.y += (P.y-10-k.y)/d*2.6; }
-    if(d < 16){ k.got = true; G.inv[k.kind]++; G.found[k.kind]++;
-      text(P.x, P.y-62, '+1 ' + ITEMS[k.kind].name, ITEMS[k.kind].color);
-      for(let i=0;i<8;i++) part({x:k.x, y:k.y, vx:rand(-1.2,1.2), vy:rand(-1.6,0.2), life:18, size:1.5, color:ITEMS[k.kind].color, add:true}); }
-    else light(k.x, k.y, 26, ITEMS[k.kind].color, 0.6);
+    const mag = k.kind === 'gold' ? 90 : 64;
+    if(d < mag && d > 1){ const sp = k.kind === 'gold' ? 3.4 : 2.6; k.x += (P.x-k.x)/d*sp; k.y += (P.y-10-k.y)/d*sp; }
+    if(d < 16){
+      k.got = true;
+      if(k.kind === 'gold'){
+        G.gold += k.v; G.goldFound += k.v;
+        text(P.x + rand(-8,8), P.y-62, '+' + k.v + ' gold', '#ffd84a');
+        for(let i=0;i<6;i++) part({x:k.x, y:k.y, vx:rand(-1.2,1.2), vy:rand(-1.6,0.2), life:16, size:1.5, color:'#ffe39a', add:true, kind:i%3?'sq':'glint'});
+      } else {
+        G.inv[k.kind]++; G.found[k.kind]++;
+        text(P.x, P.y-62, '+1 ' + ITEMS[k.kind].name, ITEMS[k.kind].color);
+        for(let i=0;i<8;i++) part({x:k.x, y:k.y, vx:rand(-1.2,1.2), vy:rand(-1.6,0.2), life:18, size:1.5, color:ITEMS[k.kind].color, add:true});
+      }
+    }
+    else light(k.x, k.y, 26, k.kind === 'gold' ? '#ffd84a' : ITEMS[k.kind].color, 0.6);
   }
   L.pickups = L.pickups.filter(k=>!k.got);
 
@@ -1084,6 +1494,9 @@ function update(){
   for(const tc of L.torches) if((G.time + Math.round(tc.ph*10))%9===0 && Math.abs(tc.x-G.player.x) < 520 && Math.abs(tc.y-G.player.y) < 360)
     part({x:tc.x+rand(-1,1), y:tc.y-8, vx:rand(-0.2,0.2), vy:rand(-0.9,-0.4), life:rand(14,24), size:1, color:'#ffd27a', add:true});
   if(L.stairs && G.time%5===0) part({x:L.stairs.x+rand(-16,16), y:L.stairs.y+8+rand(-6,6), vy:rand(-1,-0.4), life:30, size:1.5, color:'#d8b8ff', add:true});
+  if(L.lobby && G.time%5===2) part({x:L.lobby.x+rand(-16,16), y:L.lobby.y+8+rand(-6,6), vy:rand(-1,-0.4), life:30, size:1.5, color:'#ffe39a', add:true});
+  if(L.shop && G.time%7===0) part({x:L.shop.x+rand(-6,6), y:L.shop.y-34+rand(-4,4), vy:rand(-0.8,-0.3), life:26, size:1.2, color:'#ffe39a', add:true, kind:'glint'});
+  if(G.portalT > 0){ G.portalT--; if(G.portalT === 0) openBossPortals(); }
   if(G.banner && G.banner.t > 0) G.banner.t--;
   if(G.fade > 0) G.fade = Math.max(0, G.fade - 0.025);
   if(G.winT > 0){ G.winT--; if(G.winT === 0){ mode = 'win'; showWin(); } }
@@ -1144,7 +1557,7 @@ function drawPlayer(){
   }
 }
 function drawEnemy(e){
-  const set = SPR[e.type], f = set[e.frame % set.length];
+  const set = SPR[e.spr], f = set[e.frame % set.length];
   const z = e.z || 0, dx = Math.round(e.x - f.width/2), dy = Math.round(e.y - f.height - z);
   ctx.fillStyle = 'rgba(0,0,0,' + (0.35 - Math.min(0.2, z/300)) + ')';
   ctx.beginPath(); ctx.ellipse(e.x, e.y, f.width*0.36*(1 - z/220), 5*(1 - z/220), 0, 0, 7); ctx.fill();
@@ -1153,23 +1566,30 @@ function drawEnemy(e){
     ctx.strokeStyle = 'rgba(255,70,90,' + (0.3 + t*0.5) + ')'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.ellipse(e.jx, e.jy, 92*Math.min(1,t+0.3), 30*Math.min(1,t+0.3), 0, 0, 7); ctx.stroke();
   }
-  const flip = e.type === 'bat' ? false : e.face < 0;
+  if(e.type === 'batlord' && e.atk === 'swoop'){
+    // vach bao huong lao
+    const c = enemyCenter(e), a = Math.atan2(e.jy-e.y, e.jx-e.x), L2 = 420;
+    ctx.save(); ctx.strokeStyle = 'rgba(255,60,90,' + (0.25 + 0.35*Math.abs(Math.sin(e.t*0.3))) + ')'; ctx.lineWidth = 18; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(e.x, e.y-4); ctx.lineTo(e.x + Math.cos(a)*L2, e.y - 4 + Math.sin(a)*L2); ctx.stroke(); ctx.restore();
+  }
+  const flip = (e.type === 'bat' || e.type === 'batlord') ? false : e.face < 0;
   ctx.save();
   if(flip){ ctx.translate(dx + f.width, dy); ctx.scale(-1, 1); } else ctx.translate(dx, dy);
   ctx.drawImage(f, 0, 0);
-  const tint = (name, a)=>{ ctx.globalAlpha = a; ctx.drawImage(SPR[e.type+name][e.frame % set.length], 0, 0); ctx.globalAlpha = 1; };
+  const tint = (name, a)=>{ ctx.globalAlpha = a; ctx.drawImage(SPR[e.spr+name][e.frame % set.length], 0, 0); ctx.globalAlpha = 1; };
   if(e.slow > 0) tint('Ice', 0.4);
   if(e.burn > 0) tint('Fire', 0.25 + 0.15*Math.sin(e.t*0.4));
-  if(e.type === 'boss' && e.phase === 2) tint('Rage', 0.18 + 0.1*Math.sin(e.t*0.15));
-  if(e.type === 'boss' && e.atk === 'volley') tint('White', 0.25 + 0.25*Math.sin(e.t*0.6));
+  if(e.isBoss && e.phase === 2) tint('Rage', 0.18 + 0.1*Math.sin(e.t*0.15));
+  if((e.type === 'boss' && e.atk === 'volley') || (e.type === 'batlord' && (e.atk === 'ring' || e.atk === 'fan'))) tint('White', 0.25 + 0.25*Math.sin(e.t*0.6));
+  if(e.type === 'spitter' && e.t % TUNE.spitter.shootCd > 55 && e.t % TUNE.spitter.shootCd < 75 && e.state === 'chase') tint('White', 0.35);
   if(e.flash > 0) tint('White', 0.85);
   ctx.restore();
-  if(e.type !== 'boss' && e.hp < e.maxHp){
-    const w = 26, x = Math.round(e.x - w/2), y = dy - 6;
+  if(!e.isBoss && e.hp < e.maxHp){
+    const w = e.type === 'brute' ? 36 : 26, x = Math.round(e.x - w/2), y = dy - 6;
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x-1, y-1, w+2, 5);
     ctx.fillStyle = '#e2445c'; ctx.fillRect(x, y, Math.round(w*e.hp/e.maxHp), 3);
   }
-  if(e.type === 'boss') light(e.x, e.y-36-z, 120, '#b070ff', 0.5);
+  if(e.isBoss) light(e.x, e.y-36-z, 120, e.type === 'batlord' ? '#ff4a6a' : e.spr === 'emperor' ? '#ff7a40' : '#b070ff', 0.5);
   if(e.type === 'bat') light(e.x, e.y-22, 34, '#ff5a5a', 0.55);
 }
 function drawBolt(b){
@@ -1275,23 +1695,47 @@ function drawParticle(p){
 function drawPickup(k){
   const ic = ICON[k.kind], y = k.y - k.h - Math.sin(k.bob)*2 - 4;
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(k.x, k.y, 6, 2, 0, 0, 7); ctx.fill();
+  if(k.kind === 'gold'){
+    const sw = Math.max(1, Math.round(ic.width * Math.abs(Math.cos(k.bob*1.6))));
+    ctx.drawImage(ic, 0, 0, ic.width, ic.height, Math.round(k.x - sw/2), Math.round(y - ic.height), sw, ic.height);
+    return;
+  }
   ctx.drawImage(ic, Math.round(k.x - ic.width/2), Math.round(y - ic.height));
   if(Math.floor(k.bob*3)%9 === 0){ ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(k.x+4), Math.round(y-ic.height+1), 1, 1); }
 }
-function drawStairs(s, t){
+function drawStairs(s, t, gold){
+  const rgb = gold ? '255,210,110' : '170,110,255', glow = gold ? '255,220,140' : '190,140,255';
   ctx.save();
-  ctx.fillStyle = 'rgba(10,4,20,0.85)'; ctx.beginPath(); ctx.ellipse(s.x, s.y+8, 20, 11, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = gold ? 'rgba(30,20,4,0.85)' : 'rgba(10,4,20,0.85)'; ctx.beginPath(); ctx.ellipse(s.x, s.y+8, 20, 11, 0, 0, 7); ctx.fill();
   ctx.globalCompositeOperation = 'lighter';
   for(let i=0;i<3;i++){
-    ctx.strokeStyle = 'rgba(170,110,255,' + (0.7 - i*0.2) + ')'; ctx.lineWidth = 2; ctx.setLineDash([4,5]); ctx.lineDashOffset = -t*(0.4+i*0.3)*(i%2?-1:1);
+    ctx.strokeStyle = 'rgba(' + rgb + ',' + (0.7 - i*0.2) + ')'; ctx.lineWidth = 2; ctx.setLineDash([4,5]); ctx.lineDashOffset = -t*(0.4+i*0.3)*(i%2?-1:1);
     ctx.beginPath(); ctx.ellipse(s.x, s.y+8, 22+i*5, 12+i*3, 0, 0, 7); ctx.stroke();
   }
   ctx.setLineDash([]);
   const g = ctx.createRadialGradient(s.x, s.y+4, 0, s.x, s.y+4, 30);
-  g.addColorStop(0,'rgba(190,140,255,0.55)'); g.addColorStop(1,'rgba(190,140,255,0)');
+  g.addColorStop(0,'rgba(' + glow + ',0.55)'); g.addColorStop(1,'rgba(' + glow + ',0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.x, s.y+4, 30, 0, 7); ctx.fill();
   ctx.restore();
-  light(s.x, s.y+6, 90, '#b08aff', 0.9);
+  light(s.x, s.y+6, 90, gold ? '#ffd27a' : '#b08aff', 0.9);
+}
+// tru ban do: be da + pha le vang lo lung
+function drawShop(s, t){
+  const x = s.x, y = s.y;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y, 16, 5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3a3346'; ctx.fillRect(x-14, y-8, 28, 8);
+  ctx.fillStyle = '#4e4660'; ctx.fillRect(x-14, y-8, 28, 2);
+  ctx.fillStyle = '#463e56'; ctx.fillRect(x-9, y-26, 18, 18);
+  ctx.fillStyle = '#5a5170'; ctx.fillRect(x-9, y-26, 18, 2); ctx.fillRect(x-9, y-26, 2, 18);
+  ctx.fillStyle = '#2a2436'; ctx.fillRect(x+7, y-26, 2, 18);
+  ctx.fillStyle = '#ffd84a'; ctx.fillRect(x-3, y-19, 6, 6); ctx.fillStyle = '#b07a10'; ctx.fillRect(x-1, y-18, 2, 4);
+  const fy = y - 40 + Math.sin(t*0.06)*3;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(x, fy, 0, x, fy, 18); g.addColorStop(0,'rgba(255,220,120,0.6)'); g.addColorStop(1,'rgba(255,220,120,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, fy, 18, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = '#f3c45a'; ctx.beginPath(); ctx.moveTo(x, fy-9); ctx.lineTo(x+6, fy); ctx.lineTo(x, fy+9); ctx.lineTo(x-6, fy); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff3c0'; ctx.beginPath(); ctx.moveTo(x, fy-9); ctx.lineTo(x+2, fy); ctx.lineTo(x, fy+4); ctx.lineTo(x-3, fy); ctx.closePath(); ctx.fill();
+  light(x, fy, 110, '#ffd27a', 0.9);
 }
 function drawTorch(tc, t){
   const fl = Math.sin(t*0.25 + tc.ph)*1.2 + Math.sin(t*0.61 + tc.ph)*0.8;
@@ -1321,12 +1765,14 @@ function render(){
     ctx.fillStyle = s.el==='fire' ? 'rgba(30,10,5,' + (0.35*a) + ')' : 'rgba(170,225,255,' + (0.18*a) + ')';
     ctx.beginPath(); ctx.ellipse(s.x, s.y, s.r, s.r*0.55, 0, 0, 7); ctx.fill();
   }
-  if(L.stairs) drawStairs(L.stairs, t);
+  if(L.stairs) drawStairs(L.stairs, t, false);
+  if(L.lobby) drawStairs(L.lobby, t, true);
   for(const tc of L.torches) drawTorch(tc, t);
 
   const list = [];
   for(const p of L.props) list.push([p.y, ()=>drawProp(p.k, p.x, p.y)]);
   for(const c of L.chests) list.push([c.y, ()=>drawProp(c.open?'chestO':'chestC', c.x, c.y)]);
+  if(L.shop) list.push([L.shop.y, ()=>drawShop(L.shop, t)]);
   for(const k of L.pickups) list.push([k.y, ()=>drawPickup(k)]);
   for(const e of L.enemies) list.push([e.y, ()=>drawEnemy(e)]);
   list.push([G.player.y, drawPlayer]);
@@ -1336,10 +1782,11 @@ function render(){
   for(const n of L.novas) drawNova(n);
   for(const b of L.bullets){
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, 10); g.addColorStop(0,'rgba(200,140,255,0.9)'); g.addColorStop(1,'rgba(140,60,255,0)');
+    const BL = BULLET_LOOK[b.look] || BULLET_LOOK.boss;
+    const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, 10); g.addColorStop(0, BL.glow0); g.addColorStop(1, BL.glow1);
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, 7); ctx.fill(); ctx.restore();
-    ctx.fillStyle = '#2a0e4a'; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill();
-    ctx.fillStyle = '#e6c8ff'; ctx.fillRect(Math.round(b.x)-1, Math.round(b.y)-2, 2, 2);
+    ctx.fillStyle = BL.core; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill();
+    ctx.fillStyle = BL.hi; ctx.fillRect(Math.round(b.x)-1, Math.round(b.y)-2, 2, 2);
   }
   for(const b of L.bolts) drawBolt(b);
   for(const p of L.parts) drawParticle(p);
@@ -1352,7 +1799,7 @@ function render(){
   ctx.setTransform(1,0,0,1,0,0);
   lctx.globalCompositeOperation = 'source-over';
   lctx.clearRect(0,0,W,H);
-  lctx.fillStyle = 'rgba(6,4,14,' + FLOORS[G.floorIdx].light + ')'; lctx.fillRect(0,0,W,H);
+  lctx.fillStyle = 'rgba(6,4,14,' + G.F.light + ')'; lctx.fillRect(0,0,W,H);
   lctx.globalCompositeOperation = 'destination-out';
   const P = G.player, frameLights = L.lights.concat(rLights), all = frameLights.concat([{x:P.x, y:P.y-20, r:200, a:1}]);
   for(const l of all){
@@ -1386,6 +1833,8 @@ function render(){
   let prompt = null;
   for(const c of L.chests) if(!c.open && dist(P.x,P.y,c.x,c.y) < 46) prompt = 'E: Open chest';
   if(L.stairs && dist(P.x,P.y,L.stairs.x,L.stairs.y+8) < 40) prompt = 'E: Enter portal to floor ' + (G.floorIdx+2);
+  if(L.lobby && dist(P.x,P.y,L.lobby.x,L.lobby.y+8) < 40) prompt = 'E: Return to lobby (progress saved)';
+  if(L.shop && dist(P.x,P.y,L.shop.x,L.shop.y) < 50) prompt = 'E: Open shop';
   if(prompt) pill(prompt, P.x, P.y - 76);
   ctx.setTransform(1,0,0,1,0,0);
   inRender = false;
@@ -1427,8 +1876,9 @@ function drawHUD(){
   ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(70, 30, hpW, 3);
   ctx.font = '6px "Press Start 2P", monospace'; ctx.fillStyle = '#ffffff'; ctx.fillText('HP ' + Math.ceil(P.hp) + '/' + P.maxHp, 74, 38);
   ctx.fillStyle = '#12201a'; ctx.fillRect(70, 42, 182, 5);
-  ctx.fillStyle = P.stam >= TUNE.dodgeCost ? '#8ee06a' : '#7a7a5a'; ctx.fillRect(70, 42, Math.round(182 * P.stam / TUNE.stamina), 5);
-  ctx.fillStyle = '#12201a'; for(let c = TUNE.dodgeCost; c < TUNE.stamina; c += TUNE.dodgeCost) ctx.fillRect(70 + Math.round(182*c/TUNE.stamina), 42, 1, 5);
+  const SM = stamMax();
+  ctx.fillStyle = P.stam >= TUNE.dodgeCost ? '#8ee06a' : '#7a7a5a'; ctx.fillRect(70, 42, Math.round(182 * P.stam / SM), 5);
+  ctx.fillStyle = '#12201a'; for(let c = TUNE.dodgeCost; c < SM; c += TUNE.dodgeCost) ctx.fillRect(70 + Math.round(182*c/SM), 42, 1, 5);
   skillIcon(70, 52, 'J', P.cd/TUNE.boltCd, false);
   skillIcon(96, 52, 'K', P.novaCd/TUNE.novaCd, true);
   skillIcon(122, 52, 'L', P.wcd/WEAPONS[pick.id].cd, false, 'weapon');
@@ -1440,9 +1890,11 @@ function drawHUD(){
   ctx.fillStyle = G.el==='ice' ? '#8fdcff' : '#ff9a3c'; ctx.fillText(EL[G.el].name, 178, 60);
   ctx.fillStyle = P.swapCd > 0 ? '#5a5070' : '#a79cbf'; ctx.fillText('Q swap', 178, 69);
 
-  panel(W-176, 8, 168, 26);
+  panel(W-262, 8, 186, 42);
   ctx.font = '7px "Press Start 2P", monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#f3c45a';
-  ctx.fillText('Floor ' + (G.floorIdx+1) + '/' + FLOORS.length + ' · Kills: ' + G.kills, W-16, 25);
+  ctx.fillText('Floor ' + (G.floorIdx+1) + '/' + FLOORS_TXT + (G.F.boss ? ' ♛' : G.F.shop ? ' ⛁' : '') + ' · Kills ' + G.kills, W-86, 23);
+  ctx.drawImage(ICON.gold, W-86-8 - ctx.measureText(String(G.gold)).width - 6, 31);
+  ctx.fillStyle = '#ffd84a'; ctx.fillText(String(G.gold), W-86, 39);
 
   // tui do
   const sw = 44, x0 = 8, y0 = H - 52;
@@ -1458,10 +1910,10 @@ function drawHUD(){
 
   const B = G.L.boss;
   if(B && G.bossAwake && !B.dead){
-    const w = 360, x = (W-w)/2, y = 18;
+    const w = 340, x = (W-w)/2 + 50, y = H - 30;
     panel(x-8, y-12, w+16, 34);
     ctx.font = '7px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffb0c8';
-    ctx.fillText('Dungeon Slime King', W/2, y-1);
+    ctx.fillText(B.name, x + w/2, y-1);
     ctx.fillStyle = '#20102a'; ctx.fillRect(x, y+4, w, 9);
     ctx.fillStyle = B.phase===2 ? '#ff3a6a' : '#a070ff'; ctx.fillRect(x, y+4, Math.round(w*Math.max(0,B.hp)/B.maxHp), 9);
     ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(x, y+4, Math.round(w*Math.max(0,B.hp)/B.maxHp), 3);
@@ -1492,9 +1944,66 @@ function skillIcon(x, y, key, cdFrac, big, kind){
 // =====================================================================
 //  MAN HINH (DOM)
 // =====================================================================
-const scr = { select: document.getElementById('selectScreen'), pause: document.getElementById('pauseScreen'),
-  dead: document.getElementById('deadScreen'), win: document.getElementById('winScreen') };
-function show(name){ for(const k in scr) scr[k].classList.toggle('show', k === name); }
+const scr = { lobby: document.getElementById('lobbyScreen'), select: document.getElementById('selectScreen'), pause: document.getElementById('pauseScreen'),
+  shop: document.getElementById('shopScreen'), dead: document.getElementById('deadScreen'), win: document.getElementById('winScreen') };
+const pauseBtn = document.getElementById('pauseBtn');
+function show(name){
+  for(const k in scr) scr[k].classList.toggle('show', k === name);
+  pauseBtn.classList.toggle('show', name === null && mode === 'play');
+}
+const fmtTime = t=>{ const s = Math.floor(t/60); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); };
+const charName = id=> (ROSTER.find(r=>r[0]===id)||[0,'?'])[1];
+
+// ----- sanh cho -----
+let newArmed = false;
+function goLobby(){ mode = 'lobby'; G = null; buildLobby(); show('lobby'); }
+function buildLobby(){
+  const S = loadJSON(SAVE_KEY);
+  newArmed = false;
+  document.getElementById('newBtn').textContent = '✦ New game';
+  document.getElementById('newWarn').textContent = '';
+  const card = document.getElementById('saveCard'), cont = document.getElementById('contBtn');
+  card.innerHTML = '';
+  if(S){
+    const cv = makeCanvas(56,56), c = cv.getContext('2d'), q = CHAR_LAYOUT[S.char].idle;
+    const draw = ()=>{ c.imageSmoothingEnabled = false; c.drawImage(charImg[q.img], 4, 0, 56, 56, 0, 0, 56, 56); };
+    if(charImg[q.img].complete) draw(); else charImg[q.img].addEventListener('load', draw);
+    const info = document.createElement('div');
+    info.innerHTML = '<b>' + charName(S.char) + '</b> · ' + WEAPONS[S.char].name + ' · ' + EL[S.el].name + ' magic<br>' +
+      'Next: <b>Floor ' + S.floor + '</b> (' + floorDef(S.floor).name.split(' · ')[1] + ')<br>' +
+      'HP ' + Math.round(S.hp) + ' · <span class="gold">● ' + S.gold + ' gold</span> · Herbs ' + (S.inv.herb||0) + ' · Kills ' + S.kills;
+    card.appendChild(cv); card.appendChild(info);
+    cont.disabled = false; cont.textContent = '▶ Continue · Floor ' + S.floor;
+  } else {
+    card.innerHTML = '<div>No saved run yet. Start a new game to enter the tower.</div>';
+    cont.disabled = true; cont.textContent = '▶ Continue';
+  }
+  // thap 15 tang: hang tren la tang cao nhat
+  const tower = document.getElementById('tower'); tower.innerHTML = '';
+  const nextF = S ? S.floor : 1;
+  for(let row=2; row>=0; row--) for(let i=1;i<=5;i++){
+    const n = row*5 + i, r = RECORDS.floors[n], d = floorDef(n);
+    const el = document.createElement('div');
+    el.className = 'fl' + (r ? ' done' : '') + (n === nextF && S ? ' cur' : '') + (d.boss ? ' boss' : '');
+    el.innerHTML = '<span class="num">' + n + (d.boss ? ' ♛' : d.shop ? ' ⛁' : '') + '</span>' +
+      (r ? '<span>✓ ' + fmtTime(r.best) + '</span><span class="dim">' + charName(r.char) + '</span>'
+         : '<span class="dim">' + (d.boss ? d.boss.name.replace('Dungeon ','') : '—') + '</span>');
+    el.title = r ? ('Best ' + fmtTime(r.best) + ' by ' + charName(r.char) + ' · ' + r.kills + ' kills · cleared ' + r.clears + 'x') : d.name;
+    tower.appendChild(el);
+  }
+  document.getElementById('recSum').textContent = 'Highest floor cleared: ' + (RECORDS.best||0) + '/15' + (RECORDS.clears ? ' · Tower conquered ' + RECORDS.clears + 'x' : '');
+}
+document.getElementById('contBtn').addEventListener('click', ()=>{ if(continueRun()){ mode = 'play'; show(null); } });
+document.getElementById('newBtn').addEventListener('click', ()=>{
+  if(loadJSON(SAVE_KEY) && !newArmed){
+    newArmed = true;
+    document.getElementById('newBtn').textContent = '✦ Click again to confirm';
+    document.getElementById('newWarn').textContent = 'Starting over replaces your saved run. Floor records are kept.';
+    return;
+  }
+  mode = 'select'; buildRoster(); show('select');
+});
+document.getElementById('backBtn').addEventListener('click', goLobby);
 
 function buildRoster(){
   const box = document.getElementById('roster'); box.innerHTML = '';
@@ -1509,37 +2018,91 @@ function buildRoster(){
     b.addEventListener('dblclick', startGame);
     box.appendChild(b);
   });
-  document.getElementById('pickName').textContent = 'Selected: ' + ROSTER.find(r=>r[0]===pick.id)[1] + ' · ' + WEAPONS[pick.id].name + ' · starts with ' + EL[pick.el].name.toLowerCase();
+  document.querySelectorAll('.btn.el').forEach(x=>x.classList.toggle('sel', x.dataset.el === pick.el));
+  document.getElementById('pickName').textContent = 'Selected: ' + charName(pick.id) + ' · ' + WEAPONS[pick.id].name + ' · starts with ' + EL[pick.el].name.toLowerCase();
 }
-document.querySelectorAll('.btn.el').forEach(b=> b.addEventListener('click', ()=>{
-  pick.el = b.dataset.el;
-  document.querySelectorAll('.btn.el').forEach(x=>x.classList.toggle('sel', x === b));
-  buildRoster();
-}));
+document.querySelectorAll('.btn.el').forEach(b=> b.addEventListener('click', ()=>{ pick.el = b.dataset.el; buildRoster(); }));
 function startGame(){
   try{ localStorage.setItem('astraeum-dungeon-pick', JSON.stringify(pick)); }catch(e){}
   newRun(); mode = 'play'; show(null);
 }
 document.getElementById('startBtn').addEventListener('click', startGame);
+
+// ----- tru ban do -----
+const SHOP = [
+  { id:'herb',  icon:'herb',     name:'Healing Herb',   desc:'+1 herb (press H to heal 30 HP)', base:20, grow:0 },
+  { id:'elixir',icon:'mushroom', name:'Elixir',         desc:'Restore all HP right now',        base:45, grow:0 },
+  { id:'vit',   icon:'heart',    name:'Vitality Charm', desc:'+20 max HP for this run',         base:70, grow:0.5 },
+  { id:'wpn',   icon:'sword',    name:'Whetstone',      desc:'+20% weapon damage',              base:80, grow:0.5 },
+  { id:'spell', icon:'orb',      name:'Arcane Focus',   desc:'+20% spell damage',               base:80, grow:0.5 },
+  { id:'stam',  icon:'wind',     name:'Wind Charm',     desc:'+25 max stamina (more dodges)',   base:60, grow:0.5 }
+];
+const SELL = { amethyst:8, sapphire:12, mushroom:5 };
+const SHOP_ICON = { heart:'❤', sword:'⚔', orb:'✦', wind:'≋' };
+function price(it){ const owned = G.up[it.id] || 0; return Math.round(it.base * (1 + it.grow*owned) * (1 + 0.04*G.floorIdx)); }
+function openShop(){ mode = 'shop'; for(const k in keys) keys[k] = false; buildShop(); show('shop'); }
+function closeShop(){ mode = 'play'; show(null); }
+function buildShop(msg){
+  document.getElementById('shopGold').textContent = '● ' + G.gold + ' gold';
+  const box = document.getElementById('shopList'); box.innerHTML = '';
+  for(const it of SHOP){
+    const p = price(it), row = document.createElement('div'); row.className = 'srow';
+    const ic = document.createElement('div'); ic.className = 'sicon';
+    if(ICON[it.icon]){ const cv = makeCanvas(14,14); cv.getContext('2d').drawImage(ICON[it.icon], 0, 0); ic.appendChild(cv); } else ic.textContent = SHOP_ICON[it.icon];
+    const owned = it.id==='herb' ? G.inv.herb : (G.up[it.id] || 0);
+    const t = document.createElement('div'); t.className = 'stxt';
+    t.innerHTML = '<b>' + it.name + '</b>' + (owned ? ' <span class="dim">(have ' + owned + ')</span>' : '') + '<br><span class="dim">' + it.desc + '</span>';
+    const b = document.createElement('button'); b.className = 'btn'; b.textContent = '● ' + p;
+    const full = it.id === 'elixir' && G.player.hp >= G.player.maxHp;
+    b.disabled = G.gold < p || full;
+    b.addEventListener('click', ()=> buy(it.id));
+    row.append(ic, t, b); box.appendChild(row);
+  }
+  const sellV = Object.keys(SELL).reduce((a,k)=> a + (G.inv[k]||0)*SELL[k], 0);
+  const sb = document.getElementById('sellBtn');
+  sb.textContent = 'Sell minerals & glowcaps · +' + sellV + ' gold'; sb.disabled = sellV <= 0;
+  document.getElementById('shopMsg').textContent = msg || 'Amethyst 8 · Sapphire 12 · Glowcap 5 gold each';
+}
+function buy(id){
+  const it = SHOP.find(s=>s.id===id), p = price(it), P = G.player;
+  if(G.gold < p) return;
+  G.gold -= p;
+  if(id === 'herb') G.inv.herb++;
+  else if(id === 'elixir') P.hp = P.maxHp;
+  else { G.up[id] = (G.up[id]||0) + 1; if(id === 'vit'){ P.maxHp = maxHpOf(); P.hp += 20; } if(id === 'stam') P.stam = stamMax(); }
+  buildShop('Bought ' + it.name + '!');
+}
+document.getElementById('sellBtn').addEventListener('click', ()=>{
+  let v = 0; for(const k in SELL){ v += (G.inv[k]||0)*SELL[k]; G.inv[k] = 0; }
+  G.gold += v; buildShop('Sold for ' + v + ' gold.');
+});
+document.getElementById('shopClose').addEventListener('click', closeShop);
+
 function showDead(){
-  document.getElementById('deadText').textContent = FLOORS[G.floorIdx].name + ' · ' + G.kills + ' enemies defeated.';
+  document.getElementById('deadText').textContent = G.F.name + ' · ' + G.kills + ' enemies defeated. Your run is saved at the start of this floor.';
   show('dead');
 }
 function showWin(){
-  const s = Math.floor(G.time/60), name = ROSTER.find(r=>r[0]===pick.id)[1];
-  document.getElementById('winSub').textContent = name + ' defeated the Dungeon Slime King with ' + WEAPONS[pick.id].name.toLowerCase() + ' and magic.';
+  const name = charName(G.char);
+  storeJSON(SAVE_KEY, null);   // da chinh phuc thap: luot choi ket thuc, ky luc van giu
+  document.getElementById('winSub').textContent = name + ' conquered all 15 floors of the tower!';
   document.getElementById('winStats').innerHTML =
-    'Time: ' + Math.floor(s/60) + ' min ' + (s%60) + ' sec<br>' +
+    'Time: ' + fmtTime(G.time) + '<br>' +
     'Enemies defeated: ' + G.kills + ' · Chests opened: ' + G.chests + '<br>' +
-    ITEM_KEYS.map(k=> ITEMS[k].name + ': ' + G.found[k]).join('<br>');
+    'Gold collected: ' + G.goldFound + '<br>' +
+    ITEM_KEYS.map(k=> ITEMS[k].name + ': ' + G.found[k]).join(' · ');
   show('win');
 }
+function pauseGame(){ if(mode !== 'play') return; mode = 'pause'; for(const k in keys) keys[k] = false;
+  document.getElementById('pauseInfo').textContent = G.F.name + ' · ' + fmtTime(G.time - G.floorT0) + ' on this floor · ● ' + G.gold + ' gold';
+  show('pause'); }
+function resumeGame(){ mode = 'play'; show(null); }
+pauseBtn.addEventListener('click', pauseGame);
 document.querySelectorAll('[data-act]').forEach(b=> b.addEventListener('click', ()=>{
   const a = b.dataset.act;
-  if(a === 'resume'){ mode = 'play'; show(null); }
-  else if(a === 'menu'){ mode = 'select'; buildRoster(); show('select'); }
+  if(a === 'resume') resumeGame();
+  else if(a === 'lobby') goLobby();
   else if(a === 'retryFloor'){ retryFloor(); mode = 'play'; show(null); }
-  else if(a === 'again'){ newRun(); mode = 'play'; show(null); }
 }));
 
 // =====================================================================
@@ -1548,22 +2111,22 @@ document.querySelectorAll('[data-act]').forEach(b=> b.addEventListener('click', 
 const GAME_KEYS = ['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' ','j','k','l','q','u','shift','e','h','p','escape'];
 window.addEventListener('keydown', e=>{
   const k = e.key.toLowerCase();
-  if(GAME_KEYS.includes(k) && mode !== 'select') e.preventDefault();
+  if(GAME_KEYS.includes(k) && (mode === 'play' || mode === 'pause' || mode === 'shop')) e.preventDefault();
   if(mode === 'select' && k === 'enter'){ startGame(); return; }
-  if(!keys[k]) keyTime[k] = performance.now();
-  keys[k] = true;
+  if(mode === 'play' || mode === 'pause' || mode === 'shop'){ if(!keys[k]) keyTime[k] = performance.now(); keys[k] = true; }
   if(e.repeat) return;
-  pressed.add(k);
   if(mode === 'play'){
+    pressed.add(k);
     if(k === 'e') interact();
     if(k === 'h') useHerb();
-    if(k === 'p' || k === 'escape'){ mode = 'pause'; show('pause'); }
-  } else if(mode === 'pause' && (k === 'p' || k === 'escape')){ mode = 'play'; show(null); }
+    if(k === 'p' || k === 'escape') pauseGame();
+  } else if(mode === 'pause' && (k === 'p' || k === 'escape')) resumeGame();
+  else if(mode === 'shop' && (k === 'escape' || k === 'e')) closeShop();
 });
 window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
-window.addEventListener('blur', ()=>{ for(const k in keys) keys[k] = false; });
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k] = false; if(mode === 'play') pauseGame(); });
 function hold(el, key, tap){
-  const on = ev=>{ ev.preventDefault(); if(!keys[key]) keyTime[key] = performance.now(); keys[key] = true; pressed.add(key); if(tap && mode==='play') tap(); };
+  const on = ev=>{ ev.preventDefault(); if(mode !== 'play') return; if(!keys[key]) keyTime[key] = performance.now(); keys[key] = true; pressed.add(key); if(tap) tap(); };
   const off = ev=>{ ev.preventDefault(); keys[key] = false; };
   el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointerleave', off); el.addEventListener('pointercancel', off);
 }
@@ -1579,6 +2142,7 @@ document.querySelectorAll('#acts button').forEach(b=>{
 // =====================================================================
 buildMonsterSprites();
 buildRoster();
+buildLobby();
 let acc = 0, last = performance.now();
 function frame(now){
   acc += Math.min(100, now - last); last = now;
@@ -1587,7 +2151,10 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__dungeon = { raiseShield:()=>raiseShield(), hurtPlayer:(d,x,y)=>hurtPlayer(d,x,y), get G(){ return G; }, get mode(){ return mode; }, pick, TUNE, WEAPONS, startGame, swapElement:()=>swapElement(), weaponAttack:()=>weaponAttack(), nextFloor:()=>nextFloor(), damageEnemy };
+window.__dungeon = { raiseShield:()=>raiseShield(), hurtPlayer:(d,x,y)=>hurtPlayer(d,x,y), get G(){ return G; }, get mode(){ return mode; }, pick, TUNE, WEAPONS,
+  startGame, swapElement:()=>swapElement(), weaponAttack:()=>weaponAttack(), nextFloor:()=>nextFloor(), damageEnemy,
+  startFloor:(i,hp)=>startFloor(i,hp), genMap, floorMap, bfsTiles, openShop, buy, goLobby, continueRun, interact:()=>interact(), get RECORDS(){ return RECORDS; },
+  setMode:m=>{ mode = m; show(null); } };
 })();
 </script>
 </body>
