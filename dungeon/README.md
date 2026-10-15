@@ -13,9 +13,9 @@ Open `index.html` in any modern browser. Everything (sprites, tiles, code) is bu
 | Key | Action |
 | --- | --- |
 | Arrows / WASD | Move (4 directions) |
-| Shift | Dodge: a quick dash with no damage taken. Costs stamina, which refills shortly after |
+| Space | Dodge: a quick dash with no damage taken. Costs stamina, which refills shortly after |
 | L | Weapon attack (each character has their own weapon) |
-| J / Space | Cast spell |
+| J | Cast spell |
 | K | Burst (area attack, has a cooldown) |
 | Q | Swap between ice and fire magic |
 | U | Raise a shield that blocks all damage and bullets for 3 seconds (10 second cooldown) |

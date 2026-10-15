@@ -70,7 +70,7 @@
 
     <div id="pauseScreen" class="overlay">
       <h2>Paused</h2>
-      <p>Arrows / WASD: move · Shift: dodge (uses stamina) · L: weapon attack · U: shield · J / Space: cast spell · K: burst · Q: swap ice/fire · E: open chests, enter portals · H: use a healing herb</p>
+      <p>Arrows / WASD: move · Space: dodge (uses stamina) · L: weapon attack · U: shield · J: cast spell · K: burst · Q: swap ice/fire · E: open chests, enter portals · H: use a healing herb</p>
       <div class="row"><button class="btn primary" data-act="resume">Resume</button><button class="btn" data-act="menu">Change character</button></div>
     </div>
 
@@ -92,10 +92,10 @@
     <div id="dpad"><button id="u">▲</button><button id="l">◀</button><button id="r">▶</button><button id="d">▼</button></div>
     <div id="acts">
       <button data-key="l">L<br>Weapon</button><button data-key="j">J<br>Spell</button><button data-key="k">K<br>Burst</button>
-      <button data-key="q">Q<br>Swap</button><button data-key="u">U<br>Shield</button><button data-key="dodge">⇧<br>Dodge</button>
+      <button data-key="q">Q<br>Swap</button><button data-key="u">U<br>Shield</button><button data-key="dodge">␣<br>Dodge</button>
       <button data-key="e">E<br>Interact</button><button data-key="h">H<br>Heal</button>
     </div>
-    <div id="help">Arrows / WASD: move · Shift: dodge · L: weapon<br>J / Space: spell · K: burst · Q: swap ice/fire<br>U: shield · E: chests, portals · H: herb · P / Esc: pause</div>
+    <div id="help">Arrows / WASD: move · Space: dodge · L: weapon<br>J: spell · K: burst · Q: swap ice/fire<br>U: shield · E: chests, portals · H: herb · P / Esc: pause</div>
   </div>
 </div>
 
@@ -232,7 +232,7 @@ const TUNE = {
   novaDmg: 28, novaCd: 300, novaRadius: 105,
   herbHeal: 30, invuln: 50,
   swapCd: 24,
-  // Shift: ne (luot nhanh mot doan, bat tu trong luc luot, ton stamina)
+  // Space: ne (luot nhanh mot doan, bat tu trong luc luot, ton stamina)
   dodgeTime: 14, dodgeSpeed: 6.2, dodgeCost: 34, dodgeGap: 6,
   stamina: 100, stamRegen: 0.9, stamDelay: 30,
   shieldTime: 180, shieldCd: 600,   // U: khien (3 giay, hoi 10 giay)
@@ -619,8 +619,8 @@ function updatePlayer(){
   let best = null, bt = -1;
   for(const [f, ks, x, y] of DIRS) for(const k of ks) if(keys[k] && (keyTime[k]||0) > bt){ bt = keyTime[k]||0; best = [f,x,y]; }
   let dx = 0, dy = 0;
-  // ne: bam Shift de luot theo huong dang di (hoac huong dang nhin), khong mat mau trong luc luot
-  if((pressed.has('shift') || pressed.has('dodge')) && P.dodge <= 0 && P.dodgeGap <= 0){
+  // ne: bam Space de luot theo huong dang di (hoac huong dang nhin), khong mat mau trong luc luot
+  if((pressed.has(' ') || pressed.has('dodge')) && P.dodge <= 0 && P.dodgeGap <= 0){
     if(P.stam >= TUNE.dodgeCost) startDodge(best);
     else text(P.x, P.y-64, 'Too tired', '#a79cbf');
   }
@@ -659,7 +659,7 @@ function updatePlayer(){
   if(P.blockT > 0) P.blockT--;
   if(pressed.has('u') && P.shieldCd <= 0) raiseShield();
 
-  if((keys['j'] || keys[' '] || pressed.has('j') || pressed.has(' ')) && P.cd <= 0) castBolt();
+  if((keys['j'] || pressed.has('j')) && P.cd <= 0) castBolt();
   if((keys['k'] || pressed.has('k')) && P.novaCd <= 0) castNova();
   if((keys['l'] || pressed.has('l')) && P.wcd <= 0) weaponAttack();
   if(pressed.has('q') && P.swapCd <= 0) swapElement();
