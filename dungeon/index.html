@@ -70,7 +70,7 @@
 
     <div id="pauseScreen" class="overlay">
       <h2>Paused</h2>
-      <p>Arrows / WASD: move · Shift: run (uses stamina) · L: weapon attack · U: shield · J / Space: cast spell · K: burst · Q: swap ice/fire · E: open chests, enter portals · H: use a healing herb</p>
+      <p>Arrows / WASD: move · Shift: dodge (uses stamina) · L: weapon attack · U: shield · J / Space: cast spell · K: burst · Q: swap ice/fire · E: open chests, enter portals · H: use a healing herb</p>
       <div class="row"><button class="btn primary" data-act="resume">Resume</button><button class="btn" data-act="menu">Change character</button></div>
     </div>
 
@@ -92,10 +92,10 @@
     <div id="dpad"><button id="u">▲</button><button id="l">◀</button><button id="r">▶</button><button id="d">▼</button></div>
     <div id="acts">
       <button data-key="l">L<br>Weapon</button><button data-key="j">J<br>Spell</button><button data-key="k">K<br>Burst</button>
-      <button data-key="q">Q<br>Swap</button><button data-key="u">U<br>Shield</button><button data-key="run">⇧<br>Run</button>
+      <button data-key="q">Q<br>Swap</button><button data-key="u">U<br>Shield</button><button data-key="dodge">⇧<br>Dodge</button>
       <button data-key="e">E<br>Interact</button><button data-key="h">H<br>Heal</button>
     </div>
-    <div id="help">Arrows / WASD: move · Shift: run · L: weapon<br>J / Space: spell · K: burst · Q: swap ice/fire<br>U: shield · E: chests, portals · H: herb · P / Esc: pause</div>
+    <div id="help">Arrows / WASD: move · Shift: dodge · L: weapon<br>J / Space: spell · K: burst · Q: swap ice/fire<br>U: shield · E: chests, portals · H: herb · P / Esc: pause</div>
   </div>
 </div>
 
@@ -232,8 +232,9 @@ const TUNE = {
   novaDmg: 28, novaCd: 300, novaRadius: 105,
   herbHeal: 30, invuln: 50,
   swapCd: 24,
-  sprintMul: 1.75,       // Shift: chay nhanh
-  stamina: 100, stamDrain: 1.45, stamRegen: 1.1, stamDelay: 25, stamMinToRun: 30,
+  // Shift: ne (luot nhanh mot doan, bat tu trong luc luot, ton stamina)
+  dodgeTime: 14, dodgeSpeed: 6.2, dodgeCost: 34, dodgeGap: 6,
+  stamina: 100, stamRegen: 0.9, stamDelay: 30,
   shieldTime: 180, shieldCd: 600,   // U: khien (3 giay, hoi 10 giay)
   meleeClose: 20,        // quai dung sat trong ban kinh nay luon bi trung du dang quay huong nao            // Q: doi bang <-> lua
   reactionDmg: 16,       // "Steam Burst": trung phep nguoc nguyen to voi hieu ung dang co
@@ -476,7 +477,7 @@ function startFloor(idx, fresh){
   L.ground = buildGround(L);
   const keepHp = !fresh && G.player ? G.player.hp : TUNE.playerHp;
   G.player = { x:start.x, y:start.y, hp: fresh ? TUNE.playerHp : Math.max(keepHp, 40), maxHp:TUNE.playerHp,
-    face:'s', moving:false, frame:0, stride:0, inv:0, cd:0, novaCd:0, kx:0, ky:0, casting:0, wcd:0, swapCd:0, atk:0, atkMax:1, stam:TUNE.stamina, stamWait:0, exhausted:false, sprinting:false, shield:0, shieldCd:0, blockT:0 };
+    face:'s', moving:false, frame:0, stride:0, inv:0, cd:0, novaCd:0, kx:0, ky:0, casting:0, wcd:0, swapCd:0, atk:0, atkMax:1, stam:TUNE.stamina, stamWait:0, dodge:0, dodgeGap:0, dvx:0, dvy:0, ghosts:[], shield:0, shieldCd:0, blockT:0 };
   G.floorStart = { inv:{...G.inv}, found:{...G.found}, kills:G.kills, chests:G.chests, hp:G.player.hp };
   G.L = L; G.cam = { x:start.x-W/2, y:start.y-H/2, shake:0 };
   G.banner = { text:FLOORS[idx].name, t:150 };
@@ -618,22 +619,33 @@ function updatePlayer(){
   let best = null, bt = -1;
   for(const [f, ks, x, y] of DIRS) for(const k of ks) if(keys[k] && (keyTime[k]||0) > bt){ bt = keyTime[k]||0; best = [f,x,y]; }
   let dx = 0, dy = 0;
-  // chay nhanh: giu Shift, ton stamina; tha ra (hoac het) thi stamina hoi lai sau mot chut
-  const wantRun = !!best && (keys['shift'] || keys['run']) && !P.exhausted && P.stam > 0;
-  P.sprinting = wantRun;
-  if(wantRun){
-    P.stam = Math.max(0, P.stam - TUNE.stamDrain); P.stamWait = TUNE.stamDelay;
-    if(P.stam <= 0){ P.exhausted = true; text(P.x, P.y-64, 'Out of breath', '#a79cbf'); }
-  } else if(P.stamWait > 0) P.stamWait--;
-  else P.stam = Math.min(TUNE.stamina, P.stam + TUNE.stamRegen);
-  if(P.exhausted && P.stam >= TUNE.stamMinToRun) P.exhausted = false;
-  const spd = TUNE.playerSpeed * (wantRun ? TUNE.sprintMul : 1);
-  if(best){ P.face = best[0]; dx = best[1]*spd; dy = best[2]*spd; }
-  const moved = moveBody(L, P, dx + P.kx, dy + P.ky, 9, 8);
-  if(wantRun && moved && G.time%4===0) part({x:P.x - best[1]*8 + rand(-3,3), y:P.y - 1, vx:-best[1]*0.6+rand(-0.3,0.3), vy:rand(-0.5,-0.1), life:rand(14,22), size:rand(3,5), kind:'puff', color:'rgba(170,160,190,0.35)'});
+  // ne: bam Shift de luot theo huong dang di (hoac huong dang nhin), khong mat mau trong luc luot
+  if((pressed.has('shift') || pressed.has('dodge')) && P.dodge <= 0 && P.dodgeGap <= 0){
+    if(P.stam >= TUNE.dodgeCost) startDodge(best);
+    else text(P.x, P.y-64, 'Too tired', '#a79cbf');
+  }
+  if(P.stamWait > 0) P.stamWait--;
+  else if(P.dodge <= 0) P.stam = Math.min(TUNE.stamina, P.stam + TUNE.stamRegen);
+  if(P.dodgeGap > 0) P.dodgeGap--;
+  for(const g of P.ghosts) g.life--;
+  P.ghosts = P.ghosts.filter(g=>g.life > 0);
+  let moved;
+  const spd = TUNE.playerSpeed;
+  if(P.dodge > 0){
+    const k = P.dodge / TUNE.dodgeTime, sp = TUNE.dodgeSpeed * (0.45 + 0.55*k);
+    moved = moveBody(L, P, P.dvx*sp, P.dvy*sp, 9, 8);
+    if(P.dodge % 3 === 0) P.ghosts.push({x:P.x, y:P.y, face:P.face, frame:P.frame, life:12});
+    if(G.time % 2 === 0) part({x:P.x + rand(-4,4), y:P.y - 1, vx:-P.dvx*0.8+rand(-0.3,0.3), vy:rand(-0.4,0)-P.dvy*0.5, life:rand(14,22), size:rand(3,6), kind:'puff', color:'rgba(170,160,190,0.35)'});
+    P.dodge--;
+    if(P.dodge === 0) P.dodgeGap = TUNE.dodgeGap;
+    best = [P.face, P.dvx, P.dvy];
+  } else {
+    if(best){ P.face = best[0]; dx = best[1]*spd; dy = best[2]*spd; }
+    moved = moveBody(L, P, dx + P.kx, dy + P.ky, 9, 8);
+  }
   P.kx *= 0.7; P.ky *= 0.7;
   P.moving = !!best && moved;
-  if(P.moving){ P.stride += spd; while(P.stride >= 12){ P.stride -= 12; P.frame = (P.frame+1) % 8; } }
+  if(P.moving){ P.stride += P.dodge > 0 ? spd*2 : spd; while(P.stride >= 12){ P.stride -= 12; P.frame = (P.frame+1) % 8; } }
   else { P.frame = 0; P.stride = 0; }
   if(P.inv > 0) P.inv--;
   if(P.cd > 0) P.cd--;
@@ -651,6 +663,16 @@ function updatePlayer(){
   if((keys['k'] || pressed.has('k')) && P.novaCd <= 0) castNova();
   if((keys['l'] || pressed.has('l')) && P.wcd <= 0) weaponAttack();
   if(pressed.has('q') && P.swapCd <= 0) swapElement();
+}
+// ----- ne -----
+function startDodge(dir){
+  const P = G.player;
+  const v = dir ? [dir[1], dir[2]] : FACE_V[P.face];
+  if(dir) P.face = dir[0];
+  P.dvx = v[0]; P.dvy = v[1]; P.dodge = TUNE.dodgeTime;
+  P.stam -= TUNE.dodgeCost; P.stamWait = TUNE.stamDelay;
+  P.kx = 0; P.ky = 0;
+  for(let i=0;i<8;i++) part({x:P.x+rand(-6,6), y:P.y-2, vx:-v[0]*rand(0.5,1.8)+rand(-0.6,0.6), vy:rand(-0.8,0)-v[1]*rand(0.5,1.5), life:rand(16,24), size:rand(4,7), kind:'puff', color:'rgba(190,180,210,0.4)'});
 }
 // ----- khien -----
 function raiseShield(){
@@ -775,6 +797,10 @@ function castNova(){
 function hurtPlayer(dmg, fromX, fromY){
   const P = G.player;
   if(P.inv > 0 || mode !== 'play') return;
+  if(P.dodge > 0){
+    if(P.blockT <= 0){ P.blockT = 20; text(P.x, P.y-64, 'Dodged!', '#cdf3ff'); }
+    return;
+  }
   if(P.shield > 0){
     if(P.blockT <= 0){
       P.blockT = 20; text(P.x, P.y-64, 'Blocked', '#ffe39a');
@@ -1014,7 +1040,8 @@ function updateCombat(){
     light(b.x, b.y, 36, '#b070ff', 0.7);
     if(blocked(L, b.x, b.y+4, 2, 2, false)){ b.life = 0; for(let i=0;i<5;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:14,size:2,color:'#c08aff',add:true}); }
     else if(P.shield > 0 && dist(b.x, b.y, P.x, P.y-22) < 30){ b.life = 0; for(let i=0;i<6;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:14,size:2,color:'#ffe39a',add:true}); }
-    else if(dist(b.x, b.y, P.x, P.y-22) < 13){ b.life = 0; hurtPlayer(10, b.x, b.y); }
+    else if(P.dodge <= 0 && dist(b.x, b.y, P.x, P.y-22) < 13){ b.life = 0; hurtPlayer(10, b.x, b.y); }
+    else if(P.dodge > 0 && dist(b.x, b.y, P.x, P.y-22) < 13 && P.blockT <= 0){ P.blockT = 20; text(P.x, P.y-64, 'Dodged!', '#cdf3ff'); }
   }
   L.bullets = L.bullets.filter(b=>b.life > 0);
 
@@ -1080,8 +1107,14 @@ function drawPlayer(){
   if(P.inv > 0 && Math.floor(P.inv/4)%2 === 0) return;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(P.x, P.y, 12, 4, 0, 0, 7); ctx.fill();
   const lv = FACE_V[P.face], lk = P.atk > 0 ? Math.round(Math.sin(P.atk/P.atkMax*Math.PI)*3) : 0;
+  // bong mo khi ne
+  for(const g of P.ghosts){
+    ctx.globalAlpha = g.life/12*0.35;
+    const k = Lt.walk[g.face]; ctx.drawImage(charImg[pick.id + g.face.toUpperCase()], g.frame*k.fw, 0, k.fw, k.fw, Math.round(g.x-k.ax), Math.round(g.y-k.ay), k.fw, k.fw);
+  }
+  ctx.globalAlpha = 1;
   ctx.save(); ctx.translate(lv[0]*lk, lv[1]*lk);
-  if(P.moving){
+  if(P.moving || P.dodge > 0){
     const k = Lt.walk[P.face], img = charImg[pick.id + P.face.toUpperCase()];
     ctx.drawImage(img, P.frame*k.fw, 0, k.fw, k.fw, Math.round(P.x-k.ax), Math.round(P.y-k.ay), k.fw, k.fw);
   } else {
@@ -1394,7 +1427,8 @@ function drawHUD(){
   ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(70, 30, hpW, 3);
   ctx.font = '6px "Press Start 2P", monospace'; ctx.fillStyle = '#ffffff'; ctx.fillText('HP ' + Math.ceil(P.hp) + '/' + P.maxHp, 74, 38);
   ctx.fillStyle = '#12201a'; ctx.fillRect(70, 42, 182, 5);
-  ctx.fillStyle = P.exhausted ? '#7a7a5a' : '#8ee06a'; ctx.fillRect(70, 42, Math.round(182 * P.stam / TUNE.stamina), 5);
+  ctx.fillStyle = P.stam >= TUNE.dodgeCost ? '#8ee06a' : '#7a7a5a'; ctx.fillRect(70, 42, Math.round(182 * P.stam / TUNE.stamina), 5);
+  ctx.fillStyle = '#12201a'; for(let c = TUNE.dodgeCost; c < TUNE.stamina; c += TUNE.dodgeCost) ctx.fillRect(70 + Math.round(182*c/TUNE.stamina), 42, 1, 5);
   skillIcon(70, 52, 'J', P.cd/TUNE.boltCd, false);
   skillIcon(96, 52, 'K', P.novaCd/TUNE.novaCd, true);
   skillIcon(122, 52, 'L', P.wcd/WEAPONS[pick.id].cd, false, 'weapon');

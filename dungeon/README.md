@@ -13,7 +13,7 @@ Open `index.html` in any modern browser. Everything (sprites, tiles, code) is bu
 | Key | Action |
 | --- | --- |
 | Arrows / WASD | Move (4 directions) |
-| Shift (hold) | Run. Uses stamina, which refills shortly after you stop running |
+| Shift | Dodge: a quick dash with no damage taken. Costs stamina, which refills shortly after |
 | L | Weapon attack (each character has their own weapon) |
 | J / Space | Cast spell |
 | K | Burst (area attack, has a cooldown) |
@@ -30,7 +30,7 @@ On mobile, use the on-screen buttons below the game.
 - **Characters:** 12 playable zodiac students (Aries to Pisces), each with 4-direction walking sprites and an idle pose.
 - **Magic:** one shared spell set in two elements, swappable at any time with Q. Ice slows enemies; fire burns them over time. Hitting a slowed enemy with fire, or a burning enemy with ice, sets off a **Steam Burst** that damages everything nearby.
 - **Weapons:** every character fights with a signature weapon: wide arcs (halberd, greatsword, sword, twin swords, twin axes, scythe), fast thrusts (rapier, spear, twin daggers, trident) or ranged throws (throwing knives, bow). Melee swings soft-aim at the nearest enemy, always connect with enemies right next to you, and cut through the boss's bullets.
-- **Movement and defense:** a short stamina-based sprint and a timed shield with an on-screen countdown.
+- **Movement and defense:** a stamina-based dodge (dash through attacks and bullets) and a timed shield with an on-screen countdown.
 - **Floors:** Floor 1 has slimes, Floor 2 adds bats, Floor 3 is the boss arena.
 - **Boss:** the Dungeon Slime King jumps and slams with a warning circle, fires bullet rings, and enrages below half HP (denser volleys, summons slimes).
 - **Loot:** chests and monster drops give minerals (Amethyst, Sapphire) and herbs (Healing Herb, Glowcap). A summary screen shows time, kills and items found.
