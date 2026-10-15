@@ -13,8 +13,10 @@ Open `index.html` in any modern browser. Everything (sprites, tiles, code) is bu
 | Key | Action |
 | --- | --- |
 | Arrows / WASD | Move (4 directions) |
+| L | Weapon attack (each character has their own weapon) |
 | J / Space | Cast spell |
 | K | Burst (area attack, has a cooldown) |
+| Q | Swap between ice and fire magic |
 | E | Open chests, enter portals |
 | H | Use a healing herb |
 | P / Esc | Pause |
@@ -24,18 +26,19 @@ On mobile, use the on-screen buttons below the game.
 ## What's in the prototype
 
 - **Characters:** 12 playable zodiac students (Aries to Pisces), each with 4-direction walking sprites and an idle pose.
-- **Magic:** one shared spell set in two elements. Ice slows enemies; fire burns them over time.
+- **Magic:** one shared spell set in two elements, swappable at any time with Q. Ice slows enemies; fire burns them over time. Hitting a slowed enemy with fire, or a burning enemy with ice, sets off a **Steam Burst** that damages everything nearby.
+- **Weapons:** every character fights with a signature weapon: wide arcs (halberd, greatsword, sword, twin swords, twin axes, scythe), fast thrusts (rapier, spear, twin daggers, trident) or ranged throws (throwing knives, bow). Melee swings also cut through the boss's bullets.
 - **Floors:** Floor 1 has slimes, Floor 2 adds bats, Floor 3 is the boss arena.
 - **Boss:** the Dungeon Slime King jumps and slams with a warning circle, fires bullet rings, and enrages below half HP (denser volleys, summons slimes).
 - **Loot:** chests and monster drops give minerals (Amethyst, Sapphire) and herbs (Healing Herb, Glowcap). A summary screen shows time, kills and items found.
 
 ## Tuning
 
-Balance values (HP, damage, speed, cooldowns) live in the `TUNE` object near the top of the script in `index.html`.
+Balance values (HP, damage, speed, cooldowns, Steam Burst) live in the `TUNE` object, and per-character weapon stats live in `WEAPONS`, near the top of the script in `index.html`.
 
 ## Credits
 
 - **Character sprites:** created by Anh Nguyen with PixelLab.
 - **Dungeon tiles and props:** [Pixel Art Top Down - Basic](https://docs.cainos.net/pixel-art-top-down-basic) by Cainos.
-- **Monsters, boss and spell effects:** drawn in code as placeholders until final sprites are made.
+- **Monsters, boss, spell and weapon effects:** drawn in code as placeholders until final sprites are made.
 - **Code:** built with AI-assisted development (Claude).

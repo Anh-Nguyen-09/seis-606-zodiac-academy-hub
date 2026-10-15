@@ -44,7 +44,7 @@
   #dpad button, #acts button{ font-family:inherit; background:var(--panel); border:2px solid var(--line); color:var(--text);
     border-radius:8px; font-size:10px; touch-action:none; cursor:pointer; }
   #u{grid-column:2;grid-row:1;} #l{grid-column:1;grid-row:2;} #r{grid-column:3;grid-row:2;} #d{grid-column:2;grid-row:3;}
-  #acts{ display:grid; grid-template-columns:repeat(2,64px); gap:6px; }
+  #acts{ display:grid; grid-template-columns:repeat(3,64px); gap:6px; }
   #acts button{ height:40px; font-size:7px; line-height:1.5; }
   #help{ font-size:7px; color:var(--dim); line-height:2; flex:1 1 200px; text-align:right; }
   @media (max-width:560px){ #roster{ grid-template-columns:repeat(4, 1fr); } #help{ text-align:left; } }
@@ -64,13 +64,13 @@
         <button class="btn el ice sel" data-el="ice">❄ Ice magic</button>
         <button class="btn el fire" data-el="fire">🔥 Fire magic</button>
       </div>
-      <p>Every character shares the same spell set. Ice slows enemies; fire burns them over time.</p>
+      <p>Pick your starting element; press Q in the dungeon to swap. Ice slows, fire burns, and hitting a slowed enemy with fire (or a burning one with ice) sets off a Steam Burst. Press L to attack with your character's own weapon.</p>
       <button id="startBtn" class="btn primary">▶ Enter the dungeon</button>
     </div>
 
     <div id="pauseScreen" class="overlay">
       <h2>Paused</h2>
-      <p>Arrows / WASD: move · J / Space: cast spell · K: burst · E: open chests, enter portals · H: use a healing herb</p>
+      <p>Arrows / WASD: move · L: weapon attack · J / Space: cast spell · K: burst · Q: swap ice/fire · E: open chests, enter portals · H: use a healing herb</p>
       <div class="row"><button class="btn primary" data-act="resume">Resume</button><button class="btn" data-act="menu">Change character</button></div>
     </div>
 
@@ -91,10 +91,10 @@
   <div id="pad">
     <div id="dpad"><button id="u">▲</button><button id="l">◀</button><button id="r">▶</button><button id="d">▼</button></div>
     <div id="acts">
-      <button data-key="j">J<br>Spell</button><button data-key="k">K<br>Burst</button>
-      <button data-key="e">E<br>Interact</button><button data-key="h">H<br>Heal</button>
+      <button data-key="l">L<br>Weapon</button><button data-key="j">J<br>Spell</button><button data-key="k">K<br>Burst</button>
+      <button data-key="q">Q<br>Swap</button><button data-key="e">E<br>Interact</button><button data-key="h">H<br>Heal</button>
     </div>
-    <div id="help">Arrows / WASD: move · J / Space: cast spell<br>K: burst · E: open chests, enter portals<br>H: healing herb · P / Esc: pause</div>
+    <div id="help">Arrows / WASD: move · L: weapon<br>J / Space: spell · K: burst · Q: swap ice/fire<br>E: chests, portals · H: herb · P / Esc: pause</div>
   </div>
 </div>
 
@@ -230,9 +230,29 @@ const TUNE = {
   boltDmg: 12, boltCd: 18, boltSpeed: 5.2,
   novaDmg: 28, novaCd: 300, novaRadius: 105,
   herbHeal: 30, invuln: 50,
+  swapCd: 24,            // Q: doi bang <-> lua
+  reactionDmg: 16,       // "Steam Burst": trung phep nguoc nguyen to voi hieu ung dang co
+  reactionRadius: 56,
   slime: { hp:36, speed:1.0, dmg:12, r:12, aggro:230 },
   bat:   { hp:24, speed:1.8, dmg:9,  r:10, aggro:270 },
   boss:  { hp:560, r:34, dmg:18 }
+};
+
+// Vu khi rieng tung nhan vat (L). type: arc = chem vong cung, thrust = dam thang, throw = phong dan
+// hits: so nhat moi lan danh (song kiem/song dao/song riu = 2), count/spread: so dan khi nem
+const WEAPONS = {
+  aries:       { name:'Halberd',          type:'arc',    dmg:20, range:50, arc:2.3, cd:34, kb:4 },
+  taurus:      { name:'Greatsword',       type:'arc',    dmg:26, range:46, arc:2.6, cd:42, kb:5 },
+  gemini:      { name:'Rapier',           type:'thrust', dmg:15, range:54, arc:0.55, cd:16, kb:2 },
+  cancer:      { name:'Spear',            type:'thrust', dmg:18, range:62, arc:0.5, cd:24, kb:3 },
+  leo:         { name:'Sword',            type:'arc',    dmg:17, range:40, arc:2.0, cd:22, kb:3 },
+  virgo:       { name:'Twin Swords',      type:'arc',    dmg:10, range:40, arc:2.1, cd:22, kb:2, hits:2 },
+  libra:       { name:'Twin Daggers',     type:'thrust', dmg:8,  range:34, arc:0.9, cd:12, kb:1, hits:2 },
+  scorpio:     { name:'Throwing Knives',  type:'throw',  dmg:9,  cd:26, count:3, spread:0.22, speed:6.5, proj:'knife' },
+  sagittarius: { name:'Bow',              type:'throw',  dmg:18, cd:30, count:1, spread:0, speed:8, proj:'arrow' },
+  capricorn:   { name:'Twin Axes',        type:'arc',    dmg:13, range:40, arc:2.2, cd:28, kb:3, hits:2 },
+  aquarius:    { name:'Scythe',           type:'arc',    dmg:18, range:56, arc:3.6, cd:36, kb:3 },
+  pisces:      { name:'Trident',          type:'thrust', dmg:14, range:58, arc:0.75, cd:24, kb:3, prongs:3 }
 };
 
 const FLOORS = [
@@ -416,7 +436,7 @@ let mode = 'select';     // select | play | pause | dead | win
 const keys = {}, keyTime = {}, pressed = new Set();
 
 function newRun(){
-  G = { floorIdx:0, kills:0, chests:0, time:0, inv:{herb:0,mushroom:0,amethyst:0,sapphire:0}, found:{herb:0,mushroom:0,amethyst:0,sapphire:0} };
+  G = { el:pick.el, floorIdx:0, kills:0, chests:0, time:0, inv:{herb:0,mushroom:0,amethyst:0,sapphire:0}, found:{herb:0,mushroom:0,amethyst:0,sapphire:0} };
   startFloor(0, true);
 }
 
@@ -425,7 +445,7 @@ function startFloor(idx, fresh){
   const F = FLOORS[idx];
   const grid = F.map.map(r=>r.split(''));
   const L = { grid, w:grid[0].length, h:grid.length, enemies:[], chests:[], pickups:[], props:[], solids:[], torches:[],
-    stairs:null, boss:null, bolts:[], bullets:[], parts:[], texts:[], lights:[], rings:[], novas:[], scorches:[] };
+    stairs:null, boss:null, bolts:[], bullets:[], parts:[], texts:[], lights:[], rings:[], novas:[], scorches:[], swings:[] };
   let start = {x:64,y:64};
   for(let ty=0; ty<L.h; ty++) for(let tx=0; tx<L.w; tx++){
     const ch = grid[ty][tx], cx = tx*TS+16, cy = ty*TS+24;
@@ -451,7 +471,7 @@ function startFloor(idx, fresh){
   L.ground = buildGround(L);
   const keepHp = !fresh && G.player ? G.player.hp : TUNE.playerHp;
   G.player = { x:start.x, y:start.y, hp: fresh ? TUNE.playerHp : Math.max(keepHp, 40), maxHp:TUNE.playerHp,
-    face:'s', moving:false, frame:0, stride:0, inv:0, cd:0, novaCd:0, kx:0, ky:0, casting:0 };
+    face:'s', moving:false, frame:0, stride:0, inv:0, cd:0, novaCd:0, kx:0, ky:0, casting:0, wcd:0, swapCd:0, atk:0, atkMax:1 };
   G.floorStart = { inv:{...G.inv}, found:{...G.found}, kills:G.kills, chests:G.chests, hp:G.player.hp };
   G.L = L; G.cam = { x:start.x-W/2, y:start.y-H/2, shake:0 };
   G.banner = { text:FLOORS[idx].name, t:150 };
@@ -603,27 +623,99 @@ function updatePlayer(){
   if(P.cd > 0) P.cd--;
   if(P.novaCd > 0) P.novaCd--;
   if(P.casting > 0) P.casting--;
+  if(P.wcd > 0) P.wcd--;
+  if(P.swapCd > 0) P.swapCd--;
+  if(P.atk > 0) P.atk--;
 
   if((keys['j'] || keys[' '] || pressed.has('j') || pressed.has(' ')) && P.cd <= 0) castBolt();
   if((keys['k'] || pressed.has('k')) && P.novaCd <= 0) castNova();
+  if((keys['l'] || pressed.has('l')) && P.wcd <= 0) weaponAttack();
+  if(pressed.has('q') && P.swapCd <= 0) swapElement();
+}
+// ----- doi phep -----
+function swapElement(){
+  const P = G.player;
+  G.el = G.el === 'ice' ? 'fire' : 'ice';
+  P.swapCd = TUNE.swapCd;
+  const E = EL[G.el];
+  for(let i=0;i<18;i++){ const a = Math.PI*2*i/18;
+    part({x:P.x+Math.cos(a)*16, y:P.y-22+Math.sin(a)*20, vx:-Math.sin(a)*1.4, vy:Math.cos(a)*1.4-0.3, life:rand(16,26), size:rand(1.5,3),
+      kind: G.el==='fire' ? 'flame' : (i%3===0 ? 'glint' : 'sq'), color:E.mid, add:true, grav: G.el==='fire' ? -0.03 : 0}); }
+  G.L.rings.push({x:P.x, y:P.y-4, r:4, max:30, life:14, maxLife:14, color:E.light, w:2});
+  light(P.x, P.y-22, 90, E.light, 0.9);
+  text(P.x, P.y-64, E.name + ' magic', G.el==='ice' ? '#bfefff' : '#ffb347');
+}
+// ----- vu khi -----
+function weaponAttack(){
+  const P = G.player, Wp = WEAPONS[pick.id], v = FACE_V[P.face], ang = Math.atan2(v[1], v[0]);
+  P.wcd = Wp.cd; P.atk = 10; P.atkMax = 10;
+  if(Wp.type === 'throw'){
+    const h = handPos();
+    for(let i=0;i<Wp.count;i++){
+      const a = ang + (i-(Wp.count-1)/2)*Wp.spread;
+      G.L.bolts.push({ x:h.x, y:h.y, vx:Math.cos(a)*Wp.speed, vy:Math.sin(a)*Wp.speed, life:55, el:null, proj:Wp.proj, dmg:Wp.dmg, ang:a, spin:0 });
+    }
+    return;
+  }
+  const hits = Wp.hits || 1;
+  for(let i=0;i<hits;i++){
+    // song vu khi: nhat thu 2 chem nguoc chieu
+    G.L.swings.push({ delay:i*7, t:0, max: Wp.type==='arc' ? 12 : 9, type:Wp.type, ang, range:Wp.range, arc:Wp.arc, dmg:Wp.dmg, kb:Wp.kb,
+      dir: i%2 ? -1 : 1, prongs:Wp.prongs||1, hit:new Set(), done:false });
+  }
+}
+function angDiff(a, b){ let d = a - b; while(d > Math.PI) d -= Math.PI*2; while(d < -Math.PI) d += Math.PI*2; return Math.abs(d); }
+function updateSwings(){
+  const L = G.L, P = G.player;
+  for(const w of L.swings){
+    if(w.delay > 0){ w.delay--; continue; }
+    w.t++;
+    const ox = P.x, oy = P.y - 20;
+    // vung sat thuong mo dan theo duong chem (tinh tu frame 1-4)
+    if(w.t <= 4){
+      for(const e of L.enemies){
+        if(e.dead || w.hit.has(e) || (e.type==='boss' && e.atk==='jump' && e.z > 20)) continue;
+        const c = enemyCenter(e), d = dist(ox, oy, c.x, c.y);
+        if(d > w.range + e.r) continue;
+        const a = Math.atan2(c.y-oy, c.x-ox);
+        const slack = Math.atan2(e.r, Math.max(d, 1));
+        if(angDiff(a, w.ang) > w.arc/2 + slack) continue;
+        w.hit.add(e);
+        damageEnemy(e, w.dmg, null, Math.cos(a)*w.kb/2.4, Math.sin(a)*w.kb/2.4);
+        hitSpark(c.x - Math.cos(a)*e.r*0.5, c.y - Math.sin(a)*e.r*0.5, a);
+        shake(2);
+      }
+      for(const b of L.bullets) if(dist(ox, oy, b.x, b.y) < w.range && angDiff(Math.atan2(b.y-oy, b.x-ox), w.ang) < w.arc/2 + 0.3){
+        // chem trung dan cua boss thi pha dan
+        b.life = 0; for(let i=0;i<5;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:12,size:2,color:'#ffffff',add:true});
+      }
+    }
+    if(w.t >= w.max) w.done = true;
+  }
+  L.swings = L.swings.filter(w=>!w.done);
+}
+function hitSpark(x, y, a){
+  for(let i=0;i<7;i++){ const b = a + rand(-0.9,0.9), s = rand(1.5,3.5);
+    part({x, y, vx:Math.cos(b)*s, vy:Math.sin(b)*s, life:rand(8,14), size:rand(3,6), kind:'shard', color:i%2?'#ffffff':'#ffe39a', add:true, drag:0.85}); }
+  light(x, y, 40, '#ffffff', 0.7);
 }
 function handPos(){
   const P = G.player, v = FACE_V[P.face];
   return { x: P.x + v[0]*14, y: P.y - 26 + (P.face==='n' ? -4 : P.face==='s' ? 4 : 0) };
 }
 function castBolt(){
-  const P = G.player, v = FACE_V[P.face], h = handPos(), E = EL[pick.el];
+  const P = G.player, v = FACE_V[P.face], h = handPos(), E = EL[G.el];
   P.cd = TUNE.boltCd; P.casting = 8;
-  G.L.bolts.push({ x:h.x, y:h.y, vx:v[0]*TUNE.boltSpeed, vy:v[1]*TUNE.boltSpeed, life:70, el:pick.el, ang:Math.atan2(v[1],v[0]), spin:0 });
+  G.L.bolts.push({ x:h.x, y:h.y, vx:v[0]*TUNE.boltSpeed, vy:v[1]*TUNE.boltSpeed, life:70, el:G.el, dmg:TUNE.boltDmg, ang:Math.atan2(v[1],v[0]), spin:0 });
   for(let i=0;i<6;i++) part({x:h.x, y:h.y, vx:v[0]*rand(0.5,2)+rand(-1,1), vy:v[1]*rand(0.5,2)+rand(-1,1), life:rand(10,16), size:rand(1.5,3),
-    color:E.mid, kind: pick.el==='fire' ? 'flame' : 'sq', add:true});
+    color:E.mid, kind: G.el==='fire' ? 'flame' : 'sq', add:true});
   light(h.x, h.y, 60, E.light, 0.9);
 }
 function castNova(){
-  const P = G.player, E = EL[pick.el];
+  const P = G.player, E = EL[G.el];
   P.novaCd = TUNE.novaCd; P.casting = 14;
-  G.L.novas.push({ x:P.x, y:P.y-14, r:8, max:TUNE.novaRadius, life:22, el:pick.el, hit:new Set() });
-  G.L.scorches.push({ x:P.x, y:P.y-6, r:TUNE.novaRadius*0.8, life:120, maxLife:120, el:pick.el });
+  G.L.novas.push({ x:P.x, y:P.y-14, r:8, max:TUNE.novaRadius, life:22, el:G.el, hit:new Set() });
+  G.L.scorches.push({ x:P.x, y:P.y-6, r:TUNE.novaRadius*0.8, life:120, maxLife:120, el:G.el });
   shake(5);
   light(P.x, P.y-14, 180, E.light, 1);
 }
@@ -680,10 +772,26 @@ function damageEnemy(e, dmg, el, kx, ky){
   e.hp -= dmg; e.flash = 6;
   const c = enemyCenter(e);
   text(c.x + rand(-6,6), c.y - (e.type==='boss'?44:18), String(dmg), el==='fire' ? '#ffb347' : el==='ice' ? '#bfefff' : '#ffffff');
-  if(el) EL[el].status(e);
+  if(el && ((el==='fire' && e.slow > 0) || (el==='ice' && e.burn > 0))) steamBurst(e);
+  else if(el) EL[el].status(e);
   if(e.type !== 'boss'){ e.vx += kx*2.4; e.vy += ky*2.4; }
   if(e.type === 'boss' && !G.bossAwake) wakeBoss();
   if(e.hp <= 0) killEnemy(e);
+}
+// phan ung nguyen to: lua trung muc tieu dang bi lam cham (hoac bang trung muc tieu dang chay) -> no hoi nuoc
+function steamBurst(src){
+  src.slow = 0; src.burn = 0;
+  const c = enemyCenter(src);
+  text(c.x, c.y - (src.type==='boss'?60:32), 'STEAM BURST!', '#e8f6ff', true);
+  for(let i=0;i<22;i++){ const a = Math.random()*Math.PI*2, s = rand(0.6,2.6);
+    part({x:c.x, y:c.y, vx:Math.cos(a)*s, vy:Math.sin(a)*s*0.7-0.5, life:rand(30,50), size:rand(6,12), kind:'puff', color:'rgba(235,245,255,0.35)', drag:0.92, grav:-0.02}); }
+  G.L.rings.push({x:c.x, y:c.y, r:6, max:TUNE.reactionRadius, life:18, maxLife:18, color:'#ffffff', w:3});
+  light(c.x, c.y, 120, '#ffffff', 1); shake(5);
+  for(const e of G.L.enemies.slice()){
+    if(e.dead) continue;
+    const ec = enemyCenter(e);
+    if(e === src || dist(c.x, c.y, ec.x, ec.y) < TUNE.reactionRadius + e.r) damageEnemy(e, TUNE.reactionDmg, null, 0, 0);
+  }
 }
 function killEnemy(e){
   e.dead = true; G.kills++;
@@ -812,15 +920,15 @@ function updateCombat(){
   const L = G.L, P = G.player;
   for(const b of L.bolts){
     b.x += b.vx; b.y += b.vy; b.life--; b.spin += 0.3;
-    EL[b.el].trail(b);
-    light(b.x, b.y, 54, EL[b.el].light, 0.85);
+    if(b.el){ EL[b.el].trail(b); light(b.x, b.y, 54, EL[b.el].light, 0.85); }
+    else if(Math.random()<0.5) part({x:b.x, y:b.y, life:8, size:1, color:'#d8dce8', add:true});
     let hit = blocked(L, b.x, b.y+6, 2, 2, false);
     if(!hit) for(const e of L.enemies){
       if(e.dead || (e.type==='boss' && e.atk==='jump' && e.z > 20)) continue;
       const c = enemyCenter(e);
-      if(dist(b.x, b.y, c.x, c.y) < e.r + 5){ damageEnemy(e, TUNE.boltDmg, b.el, Math.sign(b.vx), Math.sign(b.vy)); hit = true; break; }
+      if(dist(b.x, b.y, c.x, c.y) < e.r + (b.el ? 5 : 9)){ damageEnemy(e, b.dmg, b.el, Math.sign(b.vx), Math.sign(b.vy)); if(!b.el) hitSpark(b.x, b.y, b.ang+Math.PI); hit = true; break; }
     }
-    if(hit || b.life <= 0){ EL[b.el].impact(b.x, b.y, false); b.life = -1; }
+    if(hit || b.life <= 0){ if(b.el) EL[b.el].impact(b.x, b.y, false); else if(!hit) for(let i=0;i<4;i++) part({x:b.x,y:b.y,vx:rand(-1,1),vy:rand(-1.5,0),life:10,size:1.5,color:'#9aa0b0',grav:0.1}); b.life = -1; }
   }
   L.bolts = L.bolts.filter(b=>b.life > 0);
 
@@ -881,6 +989,7 @@ function update(){
   G.L.lights = [];
   updatePlayer();
   updateEnemies();
+  updateSwings();
   updateCombat();
   const L = G.L;
   for(const tc of L.torches) if((G.time + Math.round(tc.ph*10))%9===0 && Math.abs(tc.x-G.player.x) < 520 && Math.abs(tc.y-G.player.y) < 360)
@@ -908,6 +1017,8 @@ function drawPlayer(){
   const P = G.player, Lt = CHAR_LAYOUT[pick.id];
   if(P.inv > 0 && Math.floor(P.inv/4)%2 === 0) return;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(P.x, P.y, 12, 4, 0, 0, 7); ctx.fill();
+  const lv = FACE_V[P.face], lk = P.atk > 0 ? Math.round(Math.sin(P.atk/P.atkMax*Math.PI)*3) : 0;
+  ctx.save(); ctx.translate(lv[0]*lk, lv[1]*lk);
   if(P.moving){
     const k = Lt.walk[P.face], img = charImg[pick.id + P.face.toUpperCase()];
     ctx.drawImage(img, P.frame*k.fw, 0, k.fw, k.fw, Math.round(P.x-k.ax), Math.round(P.y-k.ay), k.fw, k.fw);
@@ -916,8 +1027,9 @@ function drawPlayer(){
     if(P.face === 's'){ const q = Lt.idle; ctx.drawImage(charImg[q.img], 0, 0, q.fw, q.fw, Math.round(P.x-q.ax), Math.round(P.y-q.ay), q.fw, q.fw); }
     else { const k = Lt.walk[P.face]; ctx.drawImage(charImg[pick.id + P.face.toUpperCase()], 0, 0, k.fw, k.fw, Math.round(P.x-k.ax), Math.round(P.y-k.ay), k.fw, k.fw); }
   }
+  ctx.restore();
   if(P.casting > 0){
-    const h = handPos(), E = EL[pick.el];
+    const h = handPos(), E = EL[G.el];
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, 12);
     g.addColorStop(0, E.glow + '0.9)'); g.addColorStop(1, E.glow + '0)');
@@ -954,6 +1066,19 @@ function drawEnemy(e){
   if(e.type === 'bat') light(e.x, e.y-22, 34, '#ff5a5a', 0.55);
 }
 function drawBolt(b){
+  if(!b.el){
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.ang);
+    if(b.proj === 'arrow'){
+      ctx.fillStyle = '#8a6a44'; ctx.fillRect(-12,-1,16,2);
+      ctx.fillStyle = '#e8ecf4'; ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(3,-3); ctx.lineTo(3,3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#d8d0c0'; ctx.fillRect(-14,-3,4,2); ctx.fillRect(-14,1,4,2);
+    } else {
+      ctx.rotate(b.spin*1.5);
+      ctx.fillStyle = '#e8ecf4'; ctx.beginPath(); ctx.moveTo(7,0); ctx.lineTo(0,-2); ctx.lineTo(-2,0); ctx.lineTo(0,2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#4a3a5a'; ctx.fillRect(-6,-1,4,2);
+    }
+    ctx.restore(); return;
+  }
   const E = EL[b.el];
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, 18);
@@ -990,6 +1115,34 @@ function drawNova(n){
       ctx.beginPath(); ctx.moveTo(x-3, y); ctx.lineTo(x, y-h); ctx.lineTo(x+3, y); ctx.closePath(); ctx.fill();
     }
   }
+}
+function drawSwing(w){
+  if(w.delay > 0) return;
+  const P = G.player, ox = P.x, oy = P.y - 20, k = w.t / w.max, fade = 1 - k;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  if(w.type === 'arc'){
+    // vet chem vong cung quet tu mot ben sang ben kia
+    const sweep = Math.min(1, w.t/4), a0 = w.ang - w.dir*w.arc/2, a1 = a0 + w.dir*w.arc*sweep;
+    const lo = Math.min(a0,a1), hi = Math.max(a0,a1);
+    for(let i=0;i<3;i++){
+      const r = w.range - i*5;
+      ctx.strokeStyle = 'rgba(' + (i===0?'255,255,255':'200,215,255') + ',' + (fade*(0.9-i*0.25)).toFixed(2) + ')';
+      ctx.lineWidth = 5 - i*1.5; ctx.beginPath(); ctx.arc(ox, oy, r, lo, hi); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(220,230,255,' + (fade*0.18).toFixed(2) + ')';
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.arc(ox, oy, w.range, lo, hi); ctx.closePath(); ctx.fill();
+  } else {
+    // dam thang: vet sang keo dai roi rut ve
+    const ext = (k < 0.4 ? k/0.4 : 1 - (k-0.4)/0.6*0.5) * w.range;
+    for(let p=0;p<w.prongs;p++){
+      const off = (p-(w.prongs-1)/2)*0.16, a = w.ang + off, tipx = ox + Math.cos(a)*ext, tipy = oy + Math.sin(a)*ext;
+      ctx.strokeStyle = 'rgba(255,255,255,' + (fade*0.95).toFixed(2) + ')'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(ox + Math.cos(a)*10, oy + Math.sin(a)*10); ctx.lineTo(tipx, tipy); ctx.stroke();
+      ctx.strokeStyle = 'rgba(170,200,255,' + (fade*0.4).toFixed(2) + ')'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(ox + Math.cos(a)*ext*0.4, oy + Math.sin(a)*ext*0.4); ctx.lineTo(tipx, tipy); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 function drawParticle(p){
   const k = p.life/p.max;
@@ -1072,6 +1225,7 @@ function render(){
   list.push([G.player.y, drawPlayer]);
   list.sort((a,b)=>a[0]-b[0]).forEach(d=>d[1]());
 
+  for(const w of L.swings) drawSwing(w);
   for(const n of L.novas) drawNova(n);
   for(const b of L.bullets){
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -1167,7 +1321,9 @@ function drawHUD(){
   ctx.font = '6px "Press Start 2P", monospace'; ctx.fillStyle = '#ffffff'; ctx.fillText('HP ' + Math.ceil(P.hp) + '/' + P.maxHp, 74, 38);
   skillIcon(70, 44, 'J', P.cd/TUNE.boltCd, false);
   skillIcon(96, 44, 'K', P.novaCd/TUNE.novaCd, true);
-  ctx.font = '6px "Press Start 2P", monospace'; ctx.fillStyle = pick.el==='ice' ? '#8fdcff' : '#ff9a3c'; ctx.fillText(EL[pick.el].name + ' magic', 124, 56);
+  ctx.font = '6px "Press Start 2P", monospace'; skillIcon(122, 44, 'L', P.wcd/WEAPONS[pick.id].cd, false, 'weapon');
+  ctx.fillStyle = G.el==='ice' ? '#8fdcff' : '#ff9a3c'; ctx.fillText(EL[G.el].name, 150, 52);
+  ctx.fillStyle = P.swapCd > 0 ? '#5a5070' : '#a79cbf'; ctx.fillText('Q swap', 150, 61);
 
   panel(W-176, 8, 168, 26);
   ctx.font = '7px "Press Start 2P", monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#f3c45a';
@@ -1196,11 +1352,14 @@ function drawHUD(){
     ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(x, y+4, Math.round(w*Math.max(0,B.hp)/B.maxHp), 3);
   }
 }
-function skillIcon(x, y, key, cdFrac, big){
-  const E = EL[pick.el];
+function skillIcon(x, y, key, cdFrac, big, kind){
+  const E = EL[G.el];
   ctx.fillStyle = '#251f31'; ctx.fillRect(x, y, 22, 18);
   ctx.save(); ctx.translate(x+11, y+9);
-  if(pick.el === 'ice'){
+  if(kind === 'weapon'){
+    ctx.rotate(-Math.PI/4); ctx.fillStyle = '#d8dce8'; ctx.fillRect(-7,-1,12,2); ctx.fillStyle = '#ffffff'; ctx.fillRect(-7,-1,12,1);
+    ctx.fillStyle = '#c9a24a'; ctx.fillRect(5,-3,2,6); ctx.fillStyle = '#6a4a2a'; ctx.fillRect(7,-1,3,2);
+  } else if(G.el === 'ice'){
     ctx.fillStyle = E.mid; ctx.beginPath(); ctx.moveTo(big?8:7,0); ctx.lineTo(0,big?6:4); ctx.lineTo(big?-8:-6,0); ctx.lineTo(0,big?-6:-4); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.fillRect(-2,-1,5,2);
   } else {
@@ -1232,7 +1391,7 @@ function buildRoster(){
     b.addEventListener('dblclick', startGame);
     box.appendChild(b);
   });
-  document.getElementById('pickName').textContent = 'Selected: ' + ROSTER.find(r=>r[0]===pick.id)[1] + ' · ' + EL[pick.el].name + ' magic';
+  document.getElementById('pickName').textContent = 'Selected: ' + ROSTER.find(r=>r[0]===pick.id)[1] + ' · ' + WEAPONS[pick.id].name + ' · starts with ' + EL[pick.el].name.toLowerCase();
 }
 document.querySelectorAll('.btn.el').forEach(b=> b.addEventListener('click', ()=>{
   pick.el = b.dataset.el;
@@ -1250,7 +1409,7 @@ function showDead(){
 }
 function showWin(){
   const s = Math.floor(G.time/60), name = ROSTER.find(r=>r[0]===pick.id)[1];
-  document.getElementById('winSub').textContent = name + ' defeated the Dungeon Slime King with ' + EL[pick.el].name.toLowerCase() + ' magic.';
+  document.getElementById('winSub').textContent = name + ' defeated the Dungeon Slime King with ' + WEAPONS[pick.id].name.toLowerCase() + ' and magic.';
   document.getElementById('winStats').innerHTML =
     'Time: ' + Math.floor(s/60) + ' min ' + (s%60) + ' sec<br>' +
     'Enemies defeated: ' + G.kills + ' · Chests opened: ' + G.chests + '<br>' +
@@ -1268,7 +1427,7 @@ document.querySelectorAll('[data-act]').forEach(b=> b.addEventListener('click', 
 // =====================================================================
 //  DIEU KHIEN
 // =====================================================================
-const GAME_KEYS = ['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' ','j','k','e','h','p','escape'];
+const GAME_KEYS = ['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' ','j','k','l','q','e','h','p','escape'];
 window.addEventListener('keydown', e=>{
   const k = e.key.toLowerCase();
   if(GAME_KEYS.includes(k) && mode !== 'select') e.preventDefault();
@@ -1310,7 +1469,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__dungeon = { get G(){ return G; }, get mode(){ return mode; }, pick, TUNE, startGame, nextFloor:()=>nextFloor(), damageEnemy };
+window.__dungeon = { get G(){ return G; }, get mode(){ return mode; }, pick, TUNE, WEAPONS, startGame, swapElement:()=>swapElement(), weaponAttack:()=>weaponAttack(), nextFloor:()=>nextFloor(), damageEnemy };
 })();
 </script>
 </body>
