@@ -70,7 +70,7 @@
 
     <div id="pauseScreen" class="overlay">
       <h2>Paused</h2>
-      <p>Arrows / WASD: move · L: weapon attack · J / Space: cast spell · K: burst · Q: swap ice/fire · E: open chests, enter portals · H: use a healing herb</p>
+      <p>Arrows / WASD: move · Shift: run (uses stamina) · L: weapon attack · U: shield · J / Space: cast spell · K: burst · Q: swap ice/fire · E: open chests, enter portals · H: use a healing herb</p>
       <div class="row"><button class="btn primary" data-act="resume">Resume</button><button class="btn" data-act="menu">Change character</button></div>
     </div>
 
@@ -92,9 +92,10 @@
     <div id="dpad"><button id="u">▲</button><button id="l">◀</button><button id="r">▶</button><button id="d">▼</button></div>
     <div id="acts">
       <button data-key="l">L<br>Weapon</button><button data-key="j">J<br>Spell</button><button data-key="k">K<br>Burst</button>
-      <button data-key="q">Q<br>Swap</button><button data-key="e">E<br>Interact</button><button data-key="h">H<br>Heal</button>
+      <button data-key="q">Q<br>Swap</button><button data-key="u">U<br>Shield</button><button data-key="run">⇧<br>Run</button>
+      <button data-key="e">E<br>Interact</button><button data-key="h">H<br>Heal</button>
     </div>
-    <div id="help">Arrows / WASD: move · L: weapon<br>J / Space: spell · K: burst · Q: swap ice/fire<br>E: chests, portals · H: herb · P / Esc: pause</div>
+    <div id="help">Arrows / WASD: move · Shift: run · L: weapon<br>J / Space: spell · K: burst · Q: swap ice/fire<br>U: shield · E: chests, portals · H: herb · P / Esc: pause</div>
   </div>
 </div>
 
@@ -230,7 +231,11 @@ const TUNE = {
   boltDmg: 12, boltCd: 18, boltSpeed: 5.2,
   novaDmg: 28, novaCd: 300, novaRadius: 105,
   herbHeal: 30, invuln: 50,
-  swapCd: 24,            // Q: doi bang <-> lua
+  swapCd: 24,
+  sprintMul: 1.75,       // Shift: chay nhanh
+  stamina: 100, stamDrain: 1.45, stamRegen: 1.1, stamDelay: 25, stamMinToRun: 30,
+  shieldTime: 180, shieldCd: 600,   // U: khien (3 giay, hoi 10 giay)
+  meleeClose: 20,        // quai dung sat trong ban kinh nay luon bi trung du dang quay huong nao            // Q: doi bang <-> lua
   reactionDmg: 16,       // "Steam Burst": trung phep nguoc nguyen to voi hieu ung dang co
   reactionRadius: 56,
   slime: { hp:36, speed:1.0, dmg:12, r:12, aggro:230 },
@@ -471,7 +476,7 @@ function startFloor(idx, fresh){
   L.ground = buildGround(L);
   const keepHp = !fresh && G.player ? G.player.hp : TUNE.playerHp;
   G.player = { x:start.x, y:start.y, hp: fresh ? TUNE.playerHp : Math.max(keepHp, 40), maxHp:TUNE.playerHp,
-    face:'s', moving:false, frame:0, stride:0, inv:0, cd:0, novaCd:0, kx:0, ky:0, casting:0, wcd:0, swapCd:0, atk:0, atkMax:1 };
+    face:'s', moving:false, frame:0, stride:0, inv:0, cd:0, novaCd:0, kx:0, ky:0, casting:0, wcd:0, swapCd:0, atk:0, atkMax:1, stam:TUNE.stamina, stamWait:0, exhausted:false, sprinting:false, shield:0, shieldCd:0, blockT:0 };
   G.floorStart = { inv:{...G.inv}, found:{...G.found}, kills:G.kills, chests:G.chests, hp:G.player.hp };
   G.L = L; G.cam = { x:start.x-W/2, y:start.y-H/2, shake:0 };
   G.banner = { text:FLOORS[idx].name, t:150 };
@@ -613,11 +618,22 @@ function updatePlayer(){
   let best = null, bt = -1;
   for(const [f, ks, x, y] of DIRS) for(const k of ks) if(keys[k] && (keyTime[k]||0) > bt){ bt = keyTime[k]||0; best = [f,x,y]; }
   let dx = 0, dy = 0;
-  if(best){ P.face = best[0]; dx = best[1]*TUNE.playerSpeed; dy = best[2]*TUNE.playerSpeed; }
+  // chay nhanh: giu Shift, ton stamina; tha ra (hoac het) thi stamina hoi lai sau mot chut
+  const wantRun = !!best && (keys['shift'] || keys['run']) && !P.exhausted && P.stam > 0;
+  P.sprinting = wantRun;
+  if(wantRun){
+    P.stam = Math.max(0, P.stam - TUNE.stamDrain); P.stamWait = TUNE.stamDelay;
+    if(P.stam <= 0){ P.exhausted = true; text(P.x, P.y-64, 'Out of breath', '#a79cbf'); }
+  } else if(P.stamWait > 0) P.stamWait--;
+  else P.stam = Math.min(TUNE.stamina, P.stam + TUNE.stamRegen);
+  if(P.exhausted && P.stam >= TUNE.stamMinToRun) P.exhausted = false;
+  const spd = TUNE.playerSpeed * (wantRun ? TUNE.sprintMul : 1);
+  if(best){ P.face = best[0]; dx = best[1]*spd; dy = best[2]*spd; }
   const moved = moveBody(L, P, dx + P.kx, dy + P.ky, 9, 8);
+  if(wantRun && moved && G.time%4===0) part({x:P.x - best[1]*8 + rand(-3,3), y:P.y - 1, vx:-best[1]*0.6+rand(-0.3,0.3), vy:rand(-0.5,-0.1), life:rand(14,22), size:rand(3,5), kind:'puff', color:'rgba(170,160,190,0.35)'});
   P.kx *= 0.7; P.ky *= 0.7;
   P.moving = !!best && moved;
-  if(P.moving){ P.stride += TUNE.playerSpeed; while(P.stride >= 12){ P.stride -= 12; P.frame = (P.frame+1) % 8; } }
+  if(P.moving){ P.stride += spd; while(P.stride >= 12){ P.stride -= 12; P.frame = (P.frame+1) % 8; } }
   else { P.frame = 0; P.stride = 0; }
   if(P.inv > 0) P.inv--;
   if(P.cd > 0) P.cd--;
@@ -626,11 +642,24 @@ function updatePlayer(){
   if(P.wcd > 0) P.wcd--;
   if(P.swapCd > 0) P.swapCd--;
   if(P.atk > 0) P.atk--;
+  if(P.shield > 0){ P.shield--; if(P.shield === 0) text(P.x, P.y-64, 'Shield faded', '#a79cbf'); }
+  if(P.shieldCd > 0){ P.shieldCd--; if(P.shieldCd === 0) text(P.x, P.y-64, 'Shield ready', '#ffe39a'); }
+  if(P.blockT > 0) P.blockT--;
+  if(pressed.has('u') && P.shieldCd <= 0) raiseShield();
 
   if((keys['j'] || keys[' '] || pressed.has('j') || pressed.has(' ')) && P.cd <= 0) castBolt();
   if((keys['k'] || pressed.has('k')) && P.novaCd <= 0) castNova();
   if((keys['l'] || pressed.has('l')) && P.wcd <= 0) weaponAttack();
   if(pressed.has('q') && P.swapCd <= 0) swapElement();
+}
+// ----- khien -----
+function raiseShield(){
+  const P = G.player;
+  P.shield = TUNE.shieldTime; P.shieldCd = TUNE.shieldCd;
+  G.L.rings.push({x:P.x, y:P.y-22, r:6, max:34, life:16, maxLife:16, color:'#ffe39a', w:3});
+  for(let i=0;i<14;i++){ const a = Math.PI*2*i/14; part({x:P.x+Math.cos(a)*26, y:P.y-22+Math.sin(a)*30, vx:Math.cos(a)*0.6, vy:Math.sin(a)*0.6, life:18, size:2, color:i%2?'#ffffff':'#ffe39a', add:true, kind:i%3?'sq':'glint'}); }
+  light(P.x, P.y-22, 110, '#ffe39a', 0.9);
+  text(P.x, P.y-64, 'Shield up!', '#ffe39a', true);
 }
 // ----- doi phep -----
 function swapElement(){
@@ -647,7 +676,20 @@ function swapElement(){
 }
 // ----- vu khi -----
 function weaponAttack(){
-  const P = G.player, Wp = WEAPONS[pick.id], v = FACE_V[P.face], ang = Math.atan2(v[1], v[0]);
+  const P = G.player, Wp = WEAPONS[pick.id], v = FACE_V[P.face];
+  let ang = Math.atan2(v[1], v[0]);
+  // ngam ho: neu co quai trong tam va lech huong nhin < 80 do thi xoay don danh ve phia quai gan nhat
+  const reach = Wp.type === 'throw' ? 260 : Wp.range + 24;
+  let best = null, bd = 1e9;
+  for(const e of G.L.enemies){
+    if(e.dead) continue;
+    const c = enemyCenter(e), d = dist(P.x, P.y-20, c.x, c.y);
+    if(d > reach + e.r) continue;
+    const a = Math.atan2(c.y-(P.y-20), c.x-P.x);
+    if(d > TUNE.meleeClose + e.r && angDiff(a, ang) > 1.4) continue;
+    if(d < bd){ bd = d; best = a; }
+  }
+  if(best !== null) ang = best;
   P.wcd = Wp.cd; P.atk = 10; P.atkMax = 10;
   if(Wp.type === 'throw'){
     const h = handPos();
@@ -672,14 +714,25 @@ function updateSwings(){
     w.t++;
     const ox = P.x, oy = P.y - 20;
     // vung sat thuong mo dan theo duong chem (tinh tu frame 1-4)
-    if(w.t <= 4){
+    if(w.t <= 6){
       for(const e of L.enemies){
         if(e.dead || w.hit.has(e) || (e.type==='boss' && e.atk==='jump' && e.z > 20)) continue;
         const c = enemyCenter(e), d = dist(ox, oy, c.x, c.y);
-        if(d > w.range + e.r) continue;
+        // ngoai tam danh (tinh ca than quai va chan quai tren mat dat)
+        const dFeet = dist(ox, P.y, e.x, e.y);
+        if(d > w.range + e.r + 6 && dFeet > w.range + e.r) continue;
         const a = Math.atan2(c.y-oy, c.x-ox);
-        const slack = Math.atan2(e.r, Math.max(d, 1));
-        if(angDiff(a, w.ang) > w.arc/2 + slack) continue;
+        if(d > TUNE.meleeClose + e.r){
+          if(w.type === 'arc'){
+            const slack = Math.atan2(e.r + 8, Math.max(d, 1));
+            if(angDiff(a, w.ang) > w.arc/2 + slack) continue;
+          } else {
+            // dam thang: khoang cach tu tam quai den duong dam
+            const ux = Math.cos(w.ang), uy = Math.sin(w.ang), px = c.x-ox, py = c.y-oy;
+            const along = px*ux + py*uy, perp = Math.abs(px*uy - py*ux);
+            if(along < -e.r || perp > e.r + 10 + (w.prongs-1)*5) continue;
+          }
+        }
         w.hit.add(e);
         damageEnemy(e, w.dmg, null, Math.cos(a)*w.kb/2.4, Math.sin(a)*w.kb/2.4);
         hitSpark(c.x - Math.cos(a)*e.r*0.5, c.y - Math.sin(a)*e.r*0.5, a);
@@ -722,6 +775,14 @@ function castNova(){
 function hurtPlayer(dmg, fromX, fromY){
   const P = G.player;
   if(P.inv > 0 || mode !== 'play') return;
+  if(P.shield > 0){
+    if(P.blockT <= 0){
+      P.blockT = 20; text(P.x, P.y-64, 'Blocked', '#ffe39a');
+      const a = Math.atan2(fromY-(P.y-22), fromX-P.x); hitSpark(P.x+Math.cos(a)*24, P.y-22+Math.sin(a)*28, a);
+      const d = Math.hypot(P.x-fromX, P.y-fromY) || 1; P.kx = (P.x-fromX)/d*2; P.ky = (P.y-fromY)/d*2;
+    }
+    return;
+  }
   P.hp = Math.max(0, P.hp - dmg); P.inv = TUNE.invuln;
   const d = Math.hypot(P.x-fromX, P.y-fromY) || 1;
   P.kx = (P.x-fromX)/d*5; P.ky = (P.y-fromY)/d*5;
@@ -952,6 +1013,7 @@ function updateCombat(){
     if(Math.random()<0.4) part({x:b.x, y:b.y, vx:rand(-0.3,0.3), vy:rand(-0.3,0.3), life:14, size:2, color:'#c08aff', add:true});
     light(b.x, b.y, 36, '#b070ff', 0.7);
     if(blocked(L, b.x, b.y+4, 2, 2, false)){ b.life = 0; for(let i=0;i<5;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:14,size:2,color:'#c08aff',add:true}); }
+    else if(P.shield > 0 && dist(b.x, b.y, P.x, P.y-22) < 30){ b.life = 0; for(let i=0;i<6;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:14,size:2,color:'#ffe39a',add:true}); }
     else if(dist(b.x, b.y, P.x, P.y-22) < 13){ b.life = 0; hurtPlayer(10, b.x, b.y); }
   }
   L.bullets = L.bullets.filter(b=>b.life > 0);
@@ -1028,6 +1090,18 @@ function drawPlayer(){
     else { const k = Lt.walk[P.face]; ctx.drawImage(charImg[pick.id + P.face.toUpperCase()], 0, 0, k.fw, k.fw, Math.round(P.x-k.ax), Math.round(P.y-k.ay), k.fw, k.fw); }
   }
   ctx.restore();
+  if(P.shield > 0 && !(P.shield < 60 && Math.floor(P.shield/5)%2)){
+    const pulse = 1 + Math.sin(G.time*0.2)*0.04, rx = 24*pulse, ry = 30*pulse, cy = P.y - 22;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(P.x, cy, 6, P.x, cy, ry);
+    g.addColorStop(0, 'rgba(255,227,154,0)'); g.addColorStop(0.75, 'rgba(255,227,154,0.10)'); g.addColorStop(1, 'rgba(255,227,154,0.35)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(P.x, cy, rx, ry, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,240,190,0.75)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(P.x, cy, rx, ry, 0, 0, 7); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,227,154,0.45)'; ctx.lineWidth = 1; ctx.beginPath();
+    for(let i=0;i<=6;i++){ const a = G.time*0.03 + i*Math.PI/3; const x = P.x + Math.cos(a)*rx*0.8, y = cy + Math.sin(a)*ry*0.8; i ? ctx.lineTo(x,y) : ctx.moveTo(x,y); }
+    ctx.stroke(); ctx.restore();
+    light(P.x, cy, 70, '#ffe39a', 0.5);
+  }
   if(P.casting > 0){
     const h = handPos(), E = EL[G.el];
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -1307,23 +1381,30 @@ function panel(x, y, w, h){
 }
 function drawHUD(){
   const P = G.player, Lt = CHAR_LAYOUT[pick.id], name = ROSTER.find(r=>r[0]===pick.id)[1];
-  panel(8, 8, 214, 58);
+  panel(8, 8, 252, 70);
   ctx.save(); ctx.beginPath(); ctx.rect(12, 12, 50, 50); ctx.clip();
   ctx.fillStyle = '#251f31'; ctx.fillRect(12,12,50,50);
   const q = Lt.idle; ctx.drawImage(charImg[q.img], 7, 1, 50, 50, 12, 12, 50, 50);
   ctx.restore();
   ctx.font = '8px "Press Start 2P", monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#efe9ff';
   ctx.fillText(name, 70, 24);
-  ctx.fillStyle = '#2a0f18'; ctx.fillRect(70, 30, 144, 10);
-  const hpW = Math.round(144 * P.hp / P.maxHp);
+  ctx.fillStyle = '#2a0f18'; ctx.fillRect(70, 30, 182, 10);
+  const hpW = Math.round(182 * P.hp / P.maxHp);
   ctx.fillStyle = P.hp/P.maxHp < 0.3 ? '#ff3a4a' : '#e2445c'; ctx.fillRect(70, 30, hpW, 10);
   ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(70, 30, hpW, 3);
   ctx.font = '6px "Press Start 2P", monospace'; ctx.fillStyle = '#ffffff'; ctx.fillText('HP ' + Math.ceil(P.hp) + '/' + P.maxHp, 74, 38);
-  skillIcon(70, 44, 'J', P.cd/TUNE.boltCd, false);
-  skillIcon(96, 44, 'K', P.novaCd/TUNE.novaCd, true);
-  ctx.font = '6px "Press Start 2P", monospace'; skillIcon(122, 44, 'L', P.wcd/WEAPONS[pick.id].cd, false, 'weapon');
-  ctx.fillStyle = G.el==='ice' ? '#8fdcff' : '#ff9a3c'; ctx.fillText(EL[G.el].name, 150, 52);
-  ctx.fillStyle = P.swapCd > 0 ? '#5a5070' : '#a79cbf'; ctx.fillText('Q swap', 150, 61);
+  ctx.fillStyle = '#12201a'; ctx.fillRect(70, 42, 182, 5);
+  ctx.fillStyle = P.exhausted ? '#7a7a5a' : '#8ee06a'; ctx.fillRect(70, 42, Math.round(182 * P.stam / TUNE.stamina), 5);
+  skillIcon(70, 52, 'J', P.cd/TUNE.boltCd, false);
+  skillIcon(96, 52, 'K', P.novaCd/TUNE.novaCd, true);
+  skillIcon(122, 52, 'L', P.wcd/WEAPONS[pick.id].cd, false, 'weapon');
+  skillIcon(148, 52, 'U', P.shieldCd/TUNE.shieldCd, false, 'shield');
+  ctx.font = '6px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+  if(P.shield > 0){ ctx.strokeStyle = '#ffe39a'; ctx.lineWidth = 1; ctx.strokeRect(147.5, 51.5, 23, 19); ctx.fillStyle = '#ffe39a'; ctx.fillText(String(Math.ceil(P.shield/60)), 162, 62); }
+  else if(P.shieldCd > 0){ ctx.fillStyle = '#ffffff'; ctx.fillText(String(Math.ceil(P.shieldCd/60)), 162, 62); }
+  ctx.textAlign = 'left';
+  ctx.fillStyle = G.el==='ice' ? '#8fdcff' : '#ff9a3c'; ctx.fillText(EL[G.el].name, 178, 60);
+  ctx.fillStyle = P.swapCd > 0 ? '#5a5070' : '#a79cbf'; ctx.fillText('Q swap', 178, 69);
 
   panel(W-176, 8, 168, 26);
   ctx.font = '7px "Press Start 2P", monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#f3c45a';
@@ -1356,7 +1437,10 @@ function skillIcon(x, y, key, cdFrac, big, kind){
   const E = EL[G.el];
   ctx.fillStyle = '#251f31'; ctx.fillRect(x, y, 22, 18);
   ctx.save(); ctx.translate(x+11, y+9);
-  if(kind === 'weapon'){
+  if(kind === 'shield'){
+    ctx.fillStyle = '#c9a24a'; ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(6,-4); ctx.lineTo(5,3); ctx.lineTo(0,7); ctx.lineTo(-5,3); ctx.lineTo(-6,-4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffe39a'; ctx.beginPath(); ctx.moveTo(0,-5); ctx.lineTo(4,-3); ctx.lineTo(3,2); ctx.lineTo(0,5); ctx.closePath(); ctx.fill();
+  } else if(kind === 'weapon'){
     ctx.rotate(-Math.PI/4); ctx.fillStyle = '#d8dce8'; ctx.fillRect(-7,-1,12,2); ctx.fillStyle = '#ffffff'; ctx.fillRect(-7,-1,12,1);
     ctx.fillStyle = '#c9a24a'; ctx.fillRect(5,-3,2,6); ctx.fillStyle = '#6a4a2a'; ctx.fillRect(7,-1,3,2);
   } else if(G.el === 'ice'){
@@ -1427,7 +1511,7 @@ document.querySelectorAll('[data-act]').forEach(b=> b.addEventListener('click', 
 // =====================================================================
 //  DIEU KHIEN
 // =====================================================================
-const GAME_KEYS = ['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' ','j','k','l','q','e','h','p','escape'];
+const GAME_KEYS = ['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' ','j','k','l','q','u','shift','e','h','p','escape'];
 window.addEventListener('keydown', e=>{
   const k = e.key.toLowerCase();
   if(GAME_KEYS.includes(k) && mode !== 'select') e.preventDefault();
@@ -1469,7 +1553,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__dungeon = { get G(){ return G; }, get mode(){ return mode; }, pick, TUNE, WEAPONS, startGame, swapElement:()=>swapElement(), weaponAttack:()=>weaponAttack(), nextFloor:()=>nextFloor(), damageEnemy };
+window.__dungeon = { raiseShield:()=>raiseShield(), hurtPlayer:(d,x,y)=>hurtPlayer(d,x,y), get G(){ return G; }, get mode(){ return mode; }, pick, TUNE, WEAPONS, startGame, swapElement:()=>swapElement(), weaponAttack:()=>weaponAttack(), nextFloor:()=>nextFloor(), damageEnemy };
 })();
 </script>
 </body>
