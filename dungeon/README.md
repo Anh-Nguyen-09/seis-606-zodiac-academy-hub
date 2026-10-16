@@ -51,7 +51,7 @@ Balance values (HP, damage, speed, cooldowns, floor scaling, Steam Burst, dodge,
 ## Credits
 
 - **Character sprites:** created by Anh Nguyen with PixelLab.
-- **Wall and decor art:** cream brick wall faces, wall-top ledges, inner and outer corners, doors, wall sconces and healing herb plants, all created by Anh Nguyen with PixelLab. Each 5-floor section of the tower and every boss lair uses its own mix, and lanterns, candles and sconces light the dungeon.
+- **Wall and decor art:** cream brick wall faces (plain, cracked, ivy, moss), a gold carved wall-top ledge, a torch-lit wooden door and a glowing healing herb plant, all created by Anh Nguyen with PixelLab. Each 5-floor section of the tower mixes the walls differently, and the door torches light the dungeon.
 - **Floor tiles and props:** [Pixel Art Top Down - Basic](https://docs.cainos.net/pixel-art-top-down-basic) by Cainos.
 - **Monsters, bosses, spell and weapon effects:** drawn in code as placeholders until final sprites are made.
 - **Code:** built with AI-assisted development (Claude).
