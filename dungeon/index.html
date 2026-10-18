@@ -840,7 +840,7 @@ const WALL_SET = {
   ],
   boss: { base:[9,9,12], deco:[11], rate:0.15 }
 };
-const WALL_CAP = 10, WALL_DOOR = 14, HERB_VAR = 5;
+const WALL_CAP = 10, WALL_DOOR = 14, HERB_VAR = 5, HERB_H = 22;   // HERB_H: chieu cao cay hp tren san (px)
 const WALL_TINT = [ 'rgba(18,12,30,0.30)', 'rgba(36,20,70,0.40)', 'rgba(70,14,26,0.38)' ];
 // diem phat sang tren cac tile (toa do trong tile 48x48)
 // duoc hai ben cua 14 phat sang
@@ -1824,8 +1824,9 @@ function drawPickup(k){
   const ic = ICON[k.kind], y = k.y - k.h - Math.sin(k.bob)*2 - 4;
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(k.x, k.y, 6, 2, 0, 0, 7); ctx.fill();
   if(k.planted != null){
-    const im = tex['herb'+k.planted];
-    ctx.drawImage(im, Math.round(k.x - 24), Math.round(k.y + 10 - 44));
+    // cay hp nho lai (~60% anh goc, thu nho muot cho than cay manh khong bi vun)
+    const im = tex.herbIcon, h = HERB_H, w = Math.round(im.width*h/im.height);
+    drawIconFit(ctx, im, Math.round(k.x - w/2), Math.round(k.y + 8 - h), h);
     return;
   }
   if(k.kind === 'gold'){
