@@ -785,6 +785,17 @@ function buildGround(L){
       if(L.tint){ g.fillStyle = L.tint; g.fillRect(X, Y, TS, TS); }
     }
   }
+  // khoang cach (o) tu moi o tuong toi san gan nhat
+  const wd = new Uint8Array(L.w*L.h).fill(9), q = [];
+  for(let ty=0; ty<L.h; ty++) for(let tx=0; tx<L.w; tx++) if(!isWall(L,tx,ty)){ wd[ty*L.w+tx] = 0; q.push(tx, ty); }
+  for(let qi=0; qi<q.length; qi+=2){
+    const x = q[qi], y = q[qi+1], d = wd[y*L.w+x];
+    if(d >= 5) continue;
+    for(let dy=-1; dy<=1; dy++) for(let dx=-1; dx<=1; dx++){
+      const nx = x+dx, ny = y+dy; if(nx<0||ny<0||nx>=L.w||ny>=L.h) continue;
+      const k = ny*L.w+nx; if(wd[k] > d+1){ wd[k] = d+1; q.push(nx, ny); }
+    }
+  }
   for(let ty=0; ty<L.h; ty++) for(let tx=0; tx<L.w; tx++){
     if(!isWall(L,tx,ty)) continue;
     const X = tx*TS, Y = ty*TS;
@@ -792,11 +803,23 @@ function buildGround(L){
       // mat tuong: ve theo tung doan o vong sau
       g.fillStyle = '#1e1a27'; g.fillRect(X, Y, TS, TS);
     } else {
-      g.fillStyle = '#1e1a27'; g.fillRect(X, Y, TS, TS);
-      g.fillStyle = '#2a2436';
-      if(!isWall(L,tx,ty-1)) g.fillRect(X, Y, TS, 3);
-      if(!isWall(L,tx-1,ty) || !isWall(L,tx-1,ty+1)) g.fillRect(X, Y, 3, TS);
-      if(!isWall(L,tx+1,ty) || !isWall(L,tx+1,ty+1)) g.fillRect(X+TS-3, Y, 3, TS);
+      // mat tren cua khoi tuong: phien da kem, toi dan khi xa san
+      const d = wd[ty*L.w+tx];
+      g.drawImage(TOP_PAT, X % 64, Y % 64, TS, TS, X, Y, TS, TS);
+      // toi dan muot theo khoang cach toi san (lay trung binh voi o ben canh de khong thanh nac)
+      const dAt = (x,y)=> (x<0||y<0||x>=L.w||y>=L.h) ? 5 : Math.min(5, wd[y*L.w+x]);
+      const DK = [0, 0.18, 0.36, 0.55, 0.72, 0.82];
+      for(let sy=0; sy<2; sy++) for(let sx=0; sx<2; sx++){
+        const nx = tx + (sx ? 1 : -1), ny = ty + (sy ? 1 : -1);
+        const a = (DK[Math.min(5,d)]*2 + DK[dAt(nx,ty)] + DK[dAt(tx,ny)]) / 4;
+        g.fillStyle = 'rgba(16,10,8,' + a.toFixed(3) + ')'; g.fillRect(X + sx*16, Y + sy*16, 16, 16);
+      }
+      // vien mep giap san: gioi sang + net vien dam, va bong do xuong san
+      if(!isWall(L,tx-1,ty)){ g.fillStyle = '#f0e4c0'; g.fillRect(X+2, Y, 3, TS); g.fillStyle = '#2a1a10'; g.fillRect(X, Y, 2, TS);
+        const sh = g.createLinearGradient(X, 0, X-8, 0); sh.addColorStop(0,'rgba(5,3,10,0.45)'); sh.addColorStop(1,'rgba(5,3,10,0)'); g.fillStyle = sh; g.fillRect(X-8, Y, 8, TS); }
+      if(!isWall(L,tx+1,ty)){ g.fillStyle = '#f0e4c0'; g.fillRect(X+TS-5, Y, 3, TS); g.fillStyle = '#2a1a10'; g.fillRect(X+TS-2, Y, 2, TS);
+        const sh = g.createLinearGradient(X+TS, 0, X+TS+8, 0); sh.addColorStop(0,'rgba(5,3,10,0.45)'); sh.addColorStop(1,'rgba(5,3,10,0)'); g.fillStyle = sh; g.fillRect(X+TS, Y, 8, TS); }
+      if(!isWall(L,tx,ty-1)){ g.fillStyle = '#f0e4c0'; g.fillRect(X, Y+2, TS, 3); g.fillStyle = '#2a1a10'; g.fillRect(X, Y, TS, 2); }
     }
   }
   drawWallFaces(L, g, sr);
@@ -818,6 +841,29 @@ const WALL_TINT = [ 'rgba(18,12,30,0.30)', 'rgba(36,20,70,0.40)', 'rgba(70,14,26
 // diem phat sang tren cac tile (toa do trong tile 48x48)
 // duoc hai ben cua 14 phat sang
 const DOOR_LIGHTS = [[6,21,115,'#ffa050'],[42,21,115,'#ffa050']];
+// hoa van phien da cho mat tren tuong (64x64, lap lien mach)
+const TOP_PAT = (()=>{
+  const c = makeCanvas(64, 64), g = c.getContext('2d');
+  let seed = 7;
+  const r = ()=>{ seed = (seed*1664525 + 1013904223)>>>0; return seed/4294967296; };
+  g.fillStyle = '#8d7d62'; g.fillRect(0, 0, 64, 64);           // vua
+  for(let row=0; row<4; row++){
+    const y = row*16; let x = row % 2 ? -10 : 0;
+    while(x < 64){
+      const w = 18 + Math.floor(r()*12), shade = Math.floor(r()*14);
+      const col = 'rgb(' + (196-shade) + ',' + (182-shade) + ',' + (150-shade) + ')';
+      for(const ox of [0, 64, -64]){
+        const sx = x + ox;
+        g.fillStyle = col; g.fillRect(sx+1, y+1, w-1, 15);
+        g.fillStyle = 'rgba(255,248,225,0.45)'; g.fillRect(sx+1, y+1, w-1, 1);
+        g.fillStyle = 'rgba(70,52,34,0.35)'; g.fillRect(sx+1, y+15, w-1, 1);
+        if(r() < 0.35){ g.fillStyle = 'rgba(90,70,50,0.35)'; g.fillRect(sx + 4 + Math.floor(r()*(w-8)), y + 4 + Math.floor(r()*8), 2, 1); }
+      }
+      x += w;
+    }
+  }
+  return c;
+})();
 function drawWallFaces(L, g, sr){
   const set = L.bossFloor ? WALL_SET.boss : WALL_SET.tier[L.tier||0];
   const pickFrom = a=> a[Math.floor(sr()*a.length)];
