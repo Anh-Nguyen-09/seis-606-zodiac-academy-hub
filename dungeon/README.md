@@ -34,7 +34,7 @@ On mobile, use the on-screen buttons below the game.
   - Floor 15, **Slime Emperor**: a harder Slime King with denser fire rings, an earlier enrage and spitter minions.
 - **After a boss** two portals open. The gold one returns you to the lobby with your progress saved, and the purple one continues to the next floor.
 - **Gold coins** drop from enemies, chests and bosses.
-- **Shrine shop** on floors 4, 9 and 14 (right before each boss). Buy herbs, an elixir, and run upgrades: +max HP, +weapon damage, +spell damage, +stamina. You can also sell minerals and glowcaps for gold.
+- **Shrine shop** on floors 4, 9 and 14 (right before each boss). Buy herbs, an elixir, and run upgrades: +max HP, +weapon damage, +spell damage, +stamina. You can also sell gems and glowcaps for gold. Rune treasure chests appear in boss lairs, drop after each boss, and occasionally replace normal chests from floor 6 up, with extra gold and gems.
 - **Lobby.** Continue your saved run or start a new one. A 15-floor record board shows which floors you have cleared, your best time on each and which character set it. Records are kept when you start a new game.
 - **Saving.** The run saves automatically at the start of every floor. Dying lets you retry the floor or go back to the lobby.
 
@@ -51,7 +51,6 @@ Balance values (HP, damage, speed, cooldowns, floor scaling, Steam Burst, dodge,
 ## Credits
 
 - **Character sprites:** created by Anh Nguyen with PixelLab.
-- **Dungeon art:** the Damp Corridors tileset and Floor 1 layout, plus the arched door, corner candles, cobwebs, rune circle, barrels, crates, clay pots, broken pillars, rubble, healing herb and gold coin, all created by Anh Nguyen with PixelLab.
-- **Chests:** [Pixel Art Top Down - Basic](https://docs.cainos.net/pixel-art-top-down-basic) by Cainos.
+- **Dungeon art:** the Damp Corridors tileset and Floor 1 layout, plus the arched door, corner candles, cobwebs, rune circle, barrels, crates, clay pots, broken pillars, rubble, wooden and rune treasure chests, gems (amethyst, sapphire, ruby, emerald, mana crystal), healing herb and gold coin, all created by Anh Nguyen with PixelLab.
 - **Monsters, bosses, spell and weapon effects:** drawn in code as placeholders until final sprites are made.
 - **Code:** built with AI-assisted development (Claude).
