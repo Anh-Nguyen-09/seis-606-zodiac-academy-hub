@@ -51,7 +51,7 @@ Balance values (HP, damage, speed, cooldowns, floor scaling, Steam Burst, dodge,
 ## Credits
 
 - **Character sprites:** created by Anh Nguyen with PixelLab.
-- **Dungeon tileset and Floor 1 layout:** flagstone floor, slate ceiling and brick wall-face tileset (Damp Corridors) plus the healing herb plant and gold coin, all created by Anh Nguyen with PixelLab. Floor 1 uses Anh's own layout; other floors are generated with the same tileset.
-- **Props (barrels, crates, pots, pillars, chests):** [Pixel Art Top Down - Basic](https://docs.cainos.net/pixel-art-top-down-basic) by Cainos.
+- **Dungeon art:** the Damp Corridors tileset and Floor 1 layout, plus the arched door, wall sconces, floor candles, cobwebs, rune circle, barrels, crates, clay pots, broken pillars, rubble, healing herb and gold coin, all created by Anh Nguyen with PixelLab.
+- **Chests:** [Pixel Art Top Down - Basic](https://docs.cainos.net/pixel-art-top-down-basic) by Cainos.
 - **Monsters, bosses, spell and weapon effects:** drawn in code as placeholders until final sprites are made.
 - **Code:** built with AI-assisted development (Claude).
