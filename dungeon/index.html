@@ -195,9 +195,9 @@ const MAPS = {
   "##........##....####.B.X##........##",
   "##........##..z.####.h..##........##",
   "##..P...........####..s......h....##",
-  "##..............####..........s.C.##",
+  "##..............####..........s...##",
   "##........##..s..o......##........##",
-  "##........##............##........##",
+  "##........##...........C##........##",
   "##........##...#####################",
   "###..########################....###",
   "###..####...#####X...########....###",
@@ -737,7 +737,7 @@ function startFloor(idx, hp){
     }
   }
   for(const c of L.chests) L.solids.push({x:c.x-16, y:c.y-14, w:32, h:14, chest:true});
-  moveIntoAlcoves(L, start);
+  moveIntoAlcoves(L, start, n <= 2 || !!F.boss);
   // den long / hoc nen tren tuong duoc chon trong buildGround
   L.n = n; L.tier = Math.min(2, Math.floor((n-1)/5)); L.bossFloor = !!F.boss; L.shopFloor = !!F.shop;
   L.startTile = { x:Math.floor(start.x/TS), y:Math.floor(start.y/TS) };
@@ -753,17 +753,49 @@ function startFloor(idx, hp){
   snapCam(true);
   saveRun();   // tu dong luu khi vao tang moi
 }
+// cuoi cac ngo cut hep: o san co tuong phia truoc, ngo rong <= 2 o va keo dai it nhat 3 o
+function findDeadEnds(L){
+  const W = (x,y)=> isWall(L,x,y), out = [], seen = new Set();
+  const width = (x,y,px,py)=>{ let n = 1, k = 1; while(!W(x+px*k, y+py*k) && n < 4){ n++; k++; } k = 1; while(!W(x-px*k, y-py*k) && n < 4){ n++; k++; } return n; };
+  for(let ty=1; ty<L.h-1; ty++) for(let tx=1; tx<L.w-1; tx++){
+    if(W(tx,ty)) continue;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      if(!W(tx+dx, ty+dy)) continue;
+      const px = dy, py = dx;    // huong vuong goc
+      let ok = true;
+      for(let b=0; b<3 && ok; b++){
+        const cx = tx - dx*b, cy = ty - dy*b;
+        if(W(cx,cy) || width(cx,cy,px,py) > 2) ok = false;
+      }
+      if(!ok) continue;
+      // ngo rong 2 o: chi lay 1 o cho moi dau ngo
+      const key = (tx + (W(tx-px,ty-py) ? 0 : -px)) + ',' + (ty + (W(tx-px,ty-py) ? 0 : -py)) + ',' + dx + ',' + dy;
+      if(seen.has(key)) continue; seen.add(key);
+      out.push([tx,ty]);
+    }
+  }
+  return out;
+}
 // hoc tuong = o san co 3 mat la tuong; dua ruong roi toi vat pham vao do thay vi de ngoai phong trong
-function moveIntoAlcoves(L, start){
+function moveIntoAlcoves(L, start, fixed){
   const W = (x,y)=> isWall(L,x,y);
+  // ban do ve tay (tang 1-2, phong boss): giu nguyen vi tri ruong / vat pham da dat
+  if(fixed){ L.deadEnds = findDeadEnds(L); L.alcoves = []; return; }
   const st = { x:Math.floor(start.x/TS), y:Math.floor(start.y/TS) };
   const alc = [];
+  const far = (tx,ty)=> Math.abs(tx-st.x) + Math.abs(ty-st.y) > 3;
+  // 1) cuoi ngo cut hep (rong 1-2 o, dai >= 3 o): uu tien dat ruong o day
+  L.deadEnds = findDeadEnds(L);
+  for(const [tx,ty] of L.deadEnds) if(far(tx,ty) && !L.busy.has(ty*L.w+tx)) alc.push([tx,ty]);
+  // 2) hoc 1 o (3 mat tuong)
+  const hoc = [];
   for(let ty=1; ty<L.h-1; ty++) for(let tx=1; tx<L.w-1; tx++){
     if(W(tx,ty) || L.busy.has(ty*L.w+tx)) continue;
     const n = W(tx-1,ty) + W(tx+1,ty) + W(tx,ty-1) + W(tx,ty+1);
-    if(n === 3 && Math.abs(tx-st.x) + Math.abs(ty-st.y) > 3) alc.push([tx,ty]);
+    if(n === 3 && far(tx,ty) && !alc.some(a=>a[0]===tx && a[1]===ty)) hoc.push([tx,ty]);
   }
-  for(let i=alc.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [alc[i], alc[j]] = [alc[j], alc[i]]; }
+  for(let i=hoc.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [hoc[i], hoc[j]] = [hoc[j], hoc[i]]; }
+  alc.push(...hoc);
   const cell = (x,y)=> Math.floor(y/TS)*L.w + Math.floor(x/TS);
   const take = (obj)=>{
     const a = alc.shift(); if(!a) return false;
@@ -848,7 +880,15 @@ function decorate(L, g){
     }
   }
   // goc phong: nen don nho (nguon sang nho) xen ke mang nhen o goc tren
+  const candles = [];
+  const noCandle = new Set();
+  for(const [tx,ty] of (L.deadEnds || [])) for(let k=0;k<4;k++) for(const [ox,oy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]) noCandle.add((ty+oy)*L.w + tx+ox);
+  const candleOk = (x, y)=> !noCandle.has(Math.floor(y/TS)*L.w + Math.floor(x/TS))
+    && !L.chests.some(c=> Math.hypot(c.x-x, c.y-y) < 6*TS)
+    && !candles.some(c=> Math.hypot(c[0]-x, c[1]-y) < 5*TS);
   const candle = (x, y)=>{
+    if(!candleOk(x, y)) return;
+    candles.push([x, y]);
     const im = tex.p_candle; g.drawImage(im, Math.round(x - im.width/2), Math.round(y - im.height));
     L.torches.push({ x, y: y - im.height + 4, r:80, col:'#ffc070', ph:r()*6 });
   };
