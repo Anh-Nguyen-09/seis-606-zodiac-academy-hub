@@ -827,7 +827,36 @@ function buildGround(L){
     }
   }
   drawWallFaces(L, g, sr);
+  outlineWallTops(L, g);
   return c;
+}
+// net vien toi quanh toan bo khoi tran tuong (canh giap san + mep tren cua mat tuong + goc)
+const OUTLINE_COL = '#0c0d13', OUTLINE_W = 2;
+function outlineWallTops(L, g){
+  const T = TS, O = OUTLINE_W;
+  g.fillStyle = OUTLINE_COL;
+  const face = (x,y)=> isWall(L,x,y) && !isWall(L,x,y+1);
+  // mep tren cua mat tuong (noi tran gap go da): tinh theo cung cong thuc voi drawWallFaces
+  const F = WPART.frieze;
+  for(let ty=1; ty<L.h; ty++) for(let tx=0; tx<L.w; tx++){
+    if(!isWall(L,tx,ty)) continue;
+    const X = tx*T, Y = ty*T;
+    if(face(tx,ty)){
+      const floorY = (ty+1)*T, brickTop = floorY - WALL_BASE_UP - WALL_BRICK_H + 6, friezeTop = brickTop + WALL_FRIEZE_OVER - F.h;
+      g.fillRect(X, friezeTop - O, T, O);
+      // canh ben cua mat tuong khi ben canh la san (tu mep tran xuong toi san)
+      if(!isWall(L,tx-1,ty)) g.fillRect(X, friezeTop - O, O, floorY - friezeTop + O);
+      if(!isWall(L,tx+1,ty)) g.fillRect(X+T-O, friezeTop - O, O, floorY - friezeTop + O);
+      continue;
+    }
+    if(!isWall(L,tx-1,ty)) g.fillRect(X, Y, O, T);
+    if(!isWall(L,tx+1,ty)) g.fillRect(X+T-O, Y, O, T);
+    if(!isWall(L,tx,ty-1)) g.fillRect(X, Y, T, O);
+    // goc ngoai bi ho: san o duong cheo, hai canh ben la tuong
+    for(const [dx,dy,cx,cy] of [[-1,-1,0,0],[1,-1,T-O,0],[-1,1,0,T-O],[1,1,T-O,T-O]]){
+      if(!isWall(L,tx+dx,ty+dy) && isWall(L,tx+dx,ty) && isWall(L,tx,ty+dy)) g.fillRect(X+cx, Y+cy, O, O);
+    }
+  }
 }
 // ----- tuong ham nguc cua Anh: go da cham tro (tren) + gach xam (giua) + chan tuong da (duoi) -----
 // cac phan ghep doc theo chieu cao, lap ngang lien mach; cua go co 2 duoc van giu
