@@ -201,14 +201,14 @@ const MAPS = {
   "##........##...#####################",
   "###..########################....###",
   "###..####...#####X...########....###",
-  "###..####.m.#####.Cs..B...##......##",
+  "###..####.m.#####..s..B...##......##",
   "##....##.......##.........##......##",
   "##....##.......##....###......##..##",
   "##.s..##.....s.##....###...s..##..##",
   "##....##...........######......#..##",
   "##........##.......###o...........##",
   "##........##...#######........a...##",
-  "##........##.......###............##",
+  "##........##......C###............##",
   "##........##.......###...........>##",
   "####################################",
   "####################################"
@@ -737,7 +737,8 @@ function startFloor(idx, hp){
     }
   }
   for(const c of L.chests) L.solids.push({x:c.x-16, y:c.y-14, w:32, h:14, chest:true});
-  moveIntoAlcoves(L, start, n <= 2 || !!F.boss);
+  L.fixedMap = n <= 2 || !!F.boss;
+  moveIntoAlcoves(L, start, L.fixedMap);
   // den long / hoc nen tren tuong duoc chon trong buildGround
   L.n = n; L.tier = Math.min(2, Math.floor((n-1)/5)); L.bossFloor = !!F.boss; L.shopFloor = !!F.shop;
   L.startTile = { x:Math.floor(start.x/TS), y:Math.floor(start.y/TS) };
@@ -864,8 +865,13 @@ function buildGround(L){
   return c;
 }
 // ----- trang tri cua Anh: cua, gia nen treo tuong, nen duoi san, mang nhen -----
+// chinh tay trang tri cho ban do co dinh (o x,y): web = luon co mang nhen, noWeb = khong dat
+const DECOR_FIX = { 1: { web:[[9,10],[5,12]], noWeb:[[8,12]] } };
 function decorate(L, g){
-  let seed = 99 + (L.n||0)*131 + Math.floor(Math.random()*1e5);
+  const FIX = L.fixedMap ? (DECOR_FIX[L.n] || {}) : {};
+  const has = (list, x, y)=> (list||[]).some(c=>c[0]===x && c[1]===y);
+  // ban do co dinh: trang tri giong nhau moi lan vao
+  let seed = 99 + (L.n||0)*131 + (L.fixedMap ? 0 : Math.floor(Math.random()*1e5));
   const r = ()=>{ seed = (seed*1664525 + 1013904223)>>>0; return seed/4294967296; };
   const W = (x,y)=> isWall(L,x,y), busy = (x,y)=> L.busy.has(y*L.w+x);
   const faceY = ty=> ty*TS + WALL_FACE_PX;            // chan dai mat tuong (o san ngay duoi tuong)
@@ -900,9 +906,10 @@ function decorate(L, g){
     if(up + dn + lf + rt !== 2 || (up && dn) || (lf && rt)) continue;   // chi goc that, khong phai hanh lang / hoc
     const X = tx*TS, Y = ty*TS;
     if(up){
-      if(r() > 0.75) continue;
+      const forceWeb = has(FIX.web, tx, ty), banWeb = has(FIX.noWeb, tx, ty);
+      if(!forceWeb && r() > 0.75) continue;
       flip = !flip;
-      if(flip){
+      if(forceWeb || (flip && !banWeb)){
         const im = tex.p_web, y = faceY(ty) - 2;
         if(lf) g.drawImage(im, X, y);
         else { g.save(); g.translate(X + TS, y); g.scale(-1, 1); g.drawImage(im, 0, 0); g.restore(); }
