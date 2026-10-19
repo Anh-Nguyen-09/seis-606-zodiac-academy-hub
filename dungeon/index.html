@@ -421,6 +421,21 @@ function tryGenMap(n){
   if(SHOP_FLOORS.includes(n)){
     for(const [dx,dy] of [[2,-1],[-2,-1],[2,1],[-2,1],[0,-2]]){ const x = S.cx+dx, y = S.cy+dy; if(g[y] && g[y][x] === '.'){ g[y][x] = 'S'; break; } }
   }
+  // khoet vai hoc tuong nho (sau 1 o) vao vach phong de dat ruong / vat pham
+  for(const r of rooms){
+    const tries = ri(0,2);
+    for(let i=0;i<tries;i++){
+      const side = ri(0,2);   // 0 tren, 1 trai, 2 phai
+      let x, y, dx = 0, dy = 0;
+      if(side === 0){ x = ri(r.x+1, r.x+r.w-2); y = r.y-1; dy = -1; }
+      else if(side === 1){ x = r.x-1; y = ri(r.y+1, r.y+r.h-2); dx = -1; }
+      else { x = r.x+r.w; y = ri(r.y+1, r.y+r.h-2); dx = 1; }
+      const ok = (cx,cy)=> cy>1 && cx>1 && cy<h-2 && cx<w-2 && g[cy][cx] === '#';
+      // o hoc + o phia sau + hai ben deu phai la tuong de khong thong sang cho khac
+      if(!ok(x,y) || !ok(x+dx,y+dy) || !ok(x+dy,y+dx) || !ok(x-dy,y-dx)) continue;
+      g[y][x] = '.';
+    }
+  }
   // do trang tri sat tuong, khong duoc chan duong
   const solidCh = ch=> 'BXoLRCS'.includes(ch);
   const baseReach = bfsTiles(g, S.cx, S.cy, solidCh).size;
@@ -721,7 +736,8 @@ function startFloor(idx, hp){
       const c = PROP[ch].col; L.solids.push({x:cx-c.w/2, y:cy-c.h, w:c.w, h:c.h});
     }
   }
-  for(const c of L.chests) L.solids.push({x:c.x-16, y:c.y-14, w:32, h:14});
+  for(const c of L.chests) L.solids.push({x:c.x-16, y:c.y-14, w:32, h:14, chest:true});
+  moveIntoAlcoves(L, start);
   // den long / hoc nen tren tuong duoc chon trong buildGround
   L.n = n; L.tier = Math.min(2, Math.floor((n-1)/5)); L.bossFloor = !!F.boss; L.shopFloor = !!F.shop;
   L.startTile = { x:Math.floor(start.x/TS), y:Math.floor(start.y/TS) };
@@ -736,6 +752,31 @@ function startFloor(idx, hp){
   G.fade = 1; G.bossAwake = false; G.winT = 0; G.portalT = 0;
   snapCam(true);
   saveRun();   // tu dong luu khi vao tang moi
+}
+// hoc tuong = o san co 3 mat la tuong; dua ruong roi toi vat pham vao do thay vi de ngoai phong trong
+function moveIntoAlcoves(L, start){
+  const W = (x,y)=> isWall(L,x,y);
+  const st = { x:Math.floor(start.x/TS), y:Math.floor(start.y/TS) };
+  const alc = [];
+  for(let ty=1; ty<L.h-1; ty++) for(let tx=1; tx<L.w-1; tx++){
+    if(W(tx,ty) || L.busy.has(ty*L.w+tx)) continue;
+    const n = W(tx-1,ty) + W(tx+1,ty) + W(tx,ty-1) + W(tx,ty+1);
+    if(n === 3 && Math.abs(tx-st.x) + Math.abs(ty-st.y) > 3) alc.push([tx,ty]);
+  }
+  for(let i=alc.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [alc[i], alc[j]] = [alc[j], alc[i]]; }
+  const cell = (x,y)=> Math.floor(y/TS)*L.w + Math.floor(x/TS);
+  const take = (obj)=>{
+    const a = alc.shift(); if(!a) return false;
+    L.busy.delete(cell(obj.x, obj.y));
+    obj.x = a[0]*TS + 16; obj.y = a[1]*TS + 24 + (obj.kind ? -6 : 0);
+    L.busy.add(a[1]*L.w + a[0]); return true;
+  };
+  for(const c of L.chests) if(!take(c)) break;
+  // cap nhat vung va cham cua ruong theo vi tri moi
+  L.solids = L.solids.filter(s=>!s.chest);
+  for(const c of L.chests) L.solids.push({x:c.x-16, y:c.y-14, w:32, h:14, chest:true});
+  for(const k of L.pickups) if(!k.planted && k.kind !== 'gold') if(!take(k)) break;
+  L.alcoves = alc;   // hoc con trong: de nen
 }
 function retryFloor(){
   const s = G.floorStart;
@@ -806,44 +847,29 @@ function decorate(L, g){
       for(let dx=-1; dx<=1; dx++) used.add(ty*L.w + st.x + dx);
     }
   }
-  // gia nen treo tuong: tren cac doan tuong dai, cach nhau 5-7 o
-  for(let ty=1; ty<L.h; ty++){
-    let run = 0;
-    for(let tx=0; tx<L.w; tx++){
-      const isFace = !W(tx,ty) && W(tx,ty-1) && W(tx-1,ty-1) && W(tx+1,ty-1);
-      if(!isFace){ run = 0; continue; }
-      run++;
-      if(run >= 3 && r() < 0.28 && !used.has(ty*L.w+tx)){
-        const im = tex.p_sconce, x = tx*TS + 16, y = faceY(ty) - 2;
-        g.drawImage(im, x - Math.round(im.width/2), y - im.height);
-        L.torches.push({ x, y: y - im.height + 6, r:110, col:'#ffb060', ph:r()*6 });
-        used.add(ty*L.w+tx); run = -4;
-      }
-    }
-  }
-  // mang nhen o goc tren cua phong
+  // goc phong: nen don nho (nguon sang nho) xen ke mang nhen o goc tren
+  const candle = (x, y)=>{
+    const im = tex.p_candle; g.drawImage(im, Math.round(x - im.width/2), Math.round(y - im.height));
+    L.torches.push({ x, y: y - im.height + 4, r:80, col:'#ffc070', ph:r()*6 });
+  };
+  let flip = r() < 0.5;
   for(let ty=1; ty<L.h-1; ty++) for(let tx=1; tx<L.w-1; tx++){
-    if(W(tx,ty) || !W(tx,ty-1)) continue;
-    const left = W(tx-1,ty), right = W(tx+1,ty);
-    if(!(left || right) || r() > 0.55) continue;
-    const im = tex.p_web, y = faceY(ty) - 2;
-    if(left) g.drawImage(im, tx*TS, y);
-    else { g.save(); g.translate(tx*TS + TS, y); g.scale(-1, 1); g.drawImage(im, 0, 0); g.restore(); }
+    if(W(tx,ty) || busy(tx,ty) || used.has(ty*L.w+tx)) continue;
+    const up = W(tx,ty-1), dn = W(tx,ty+1), lf = W(tx-1,ty), rt = W(tx+1,ty);
+    if(up + dn + lf + rt !== 2 || (up && dn) || (lf && rt)) continue;   // chi goc that, khong phai hanh lang / hoc
+    const X = tx*TS, Y = ty*TS;
+    if(up){
+      if(r() > 0.75) continue;
+      flip = !flip;
+      if(flip){
+        const im = tex.p_web, y = faceY(ty) - 2;
+        if(lf) g.drawImage(im, X, y);
+        else { g.save(); g.translate(X + TS, y); g.scale(-1, 1); g.drawImage(im, 0, 0); g.restore(); }
+      } else candle(lf ? X + 9 : X + TS - 9, faceY(ty) + 14);
+    } else if(r() < 0.5) candle(lf ? X + 9 : X + TS - 9, Y + 26);
   }
-  // nen sap duoi san, sat chan tuong, khong de len o co do vat
-  const cand = [];
-  for(let ty=1; ty<L.h-1; ty++) for(let tx=1; tx<L.w-1; tx++){
-    if(W(tx,ty) || busy(tx,ty)) continue;
-    const nearWall = W(tx-1,ty) || W(tx+1,ty) || W(tx,ty+1);
-    if(nearWall && !W(tx,ty-1)) cand.push([tx,ty]);
-  }
-  const nCandles = Math.min(cand.length, 4 + Math.floor((L.w*L.h)/220));
-  for(let i=0; i<nCandles && cand.length; i++){
-    const [tx,ty] = cand.splice(Math.floor(r()*cand.length), 1)[0];
-    const im = tex.p_candle, x = tx*TS + 8 + Math.floor(r()*16), y = ty*TS + 22 + Math.floor(r()*6);
-    g.drawImage(im, x - Math.round(im.width/2), y - im.height);
-    L.torches.push({ x, y: y - im.height + 4, r:85, col:'#ffc070', ph:r()*6 });
-  }
+  // hoc tuong con trong: dat nen
+  for(const [tx,ty] of (L.alcoves || [])) if(r() < 0.6) candle(tx*TS + 16, W(tx,ty-1) ? faceY(ty) + 16 : ty*TS + 24);
 }
 // o tileset (4x4) theo goc NW,NE,SW,SE (1 = san, 0 = tran); do tu file export cua Anh
 const WANG = {
