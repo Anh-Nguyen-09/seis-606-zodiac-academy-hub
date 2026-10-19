@@ -201,7 +201,7 @@ const MAPS = {
   "##........##...#####################",
   "###..########################....###",
   "###..####...#####X...########....###",
-  "###..####.m.#####..s..B...##......##",
+  "###..####...#####..s..B...##......##",
   "##....##.......##.........##......##",
   "##....##.......##....###......##..##",
   "##.s..##.....s.##....###...s..##..##",
@@ -222,7 +222,7 @@ const MAPS = {
   "##...................................###",
   "##.......###.........b........b......###",
   "##.......###............###..........###",
-  "####..######............###.z......m.###",
+  "####..######............###.z........###",
   "####..############..#######..........###",
   "####..############..###########..#######",
   "##.........#######..###########..#######",
@@ -415,7 +415,6 @@ function tryGenMap(n){
   const others = rooms.filter(r=>r!==S);
   for(let i=0;i<1 + Math.floor(n/6); i++) put(others[ri(0,others.length-1)], 'C');
   for(let i=0;i<ri(1,3);i++) put(others[ri(0,others.length-1)], 'h');
-  if(Math.random() < 0.6) put(others[ri(0,others.length-1)], 'm');
   const gems = ['a','a','z','z','r','e']; if(n >= 6) gems.push('r','e','k'); if(n >= 11) gems.push('k');
   for(let i=0;i<ri(1,3);i++) put(others[ri(0,others.length-1)], gems[ri(0,gems.length-1)]);
   // tru ban do (tang truoc boss) ngay canh cho xuat phat
@@ -471,8 +470,8 @@ const ITEMS = {
   emerald:  { name:'Emerald',        kind:'Mineral', color:'#4fe08a' },
   mana:     { name:'Mana Crystal',   kind:'Mineral', color:'#6ff0ff' }
 };
-const ITEM_KEYS = ['herb','mushroom','amethyst','sapphire','ruby','emerald','mana'];
-const EMPTY_INV = ()=> Object.fromEntries(ITEM_KEYS.map(k=>[k,0]));
+const ITEM_KEYS = ['herb','amethyst','sapphire','ruby','emerald','mana'];
+const EMPTY_INV = ()=> Object.fromEntries(ITEM_KEYS.concat(['mushroom']).map(k=>[k,0]));
 
 // =====================================================================
 //  CANVAS, ANH, TIEN ICH
@@ -740,7 +739,8 @@ function startFloor(idx, hp){
     else if(ch === 'S'){ L.shop = {x:cx, y:cy}; L.solids.push({x:cx-12, y:cy-10, w:24, h:10}); }
     else if(ch === 'C') L.chests.push({x:cx, y:cy, open:false, big: !!F.boss || (n >= 6 && Math.random() < 0.25)});
     else if('hmazrek'.includes(ch)){
-      const k = makePickup({h:'herb',m:'mushroom',a:'amethyst',z:'sapphire',r:'ruby',e:'emerald',k:'mana'}[ch], cx, cy-6);
+      if(ch === 'm') continue;   // nam da bo
+      const k = makePickup({h:'herb',a:'amethyst',z:'sapphire',r:'ruby',e:'emerald',k:'mana'}[ch], cx, cy-6);
       // co hoi mau moc tren san (cay that, khong bay lo lung)
       if(ch === 'h') k.planted = HERB_VAR;
       L.pickups.push(k);
@@ -943,7 +943,7 @@ const WANG = {
 };
 // mat tuong trong tileset tran xuong phan tren cua o san ben duoi -> chan khong cho di len do
 const WALL_FACE_PX = 12;
-const HERB_VAR = 5, HERB_H = 22;   // HERB_H: chieu cao cay hp tren san (px)
+const HERB_VAR = 5, HERB_H = 22, GEM_H = 13;   // GEM_H: chieu cao da quy rot tren san (px)   // HERB_H: chieu cao cay hp tren san (px)
 
 // =====================================================================
 //  VA CHAM
@@ -1244,7 +1244,7 @@ function interact(){
 function openChest(c){
   c.open = true; G.chests++;
   const L = G.L, n = c.big ? 4 + Math.floor(Math.random()*3) : 2 + Math.floor(Math.random()*3);
-  const pool = c.big ? ['herb','sapphire','ruby','emerald','mana','mana','amethyst'] : ['herb','herb','mushroom','amethyst','amethyst','sapphire','ruby','emerald'];
+  const pool = c.big ? ['herb','sapphire','ruby','emerald','mana','mana','amethyst'] : ['herb','herb','amethyst','amethyst','sapphire','ruby','emerald'];
   for(let i=0;i<n;i++){
     const a = -Math.PI/2 + (i-(n-1)/2)*0.6;
     L.pickups.push(makePickup(pool[Math.floor(Math.random()*pool.length)], c.x, c.y-14, Math.cos(a)*1.4, Math.sin(a)*0.6+0.9));
@@ -1355,7 +1355,7 @@ function killEnemy(e){
     else { G.portalT = 80; G.banner = { text:'Floor ' + (G.floorIdx+1) + ' cleared!', t:150 }; }
   } else {
     if(Math.random() < (GOLD_DROP[e.type] ? 0.85 : 0)) dropGold(e.x, e.y-8, GOLD_DROP[e.type] * (1 + TUNE.scaleGold*G.floorIdx) * rand(0.7, 1.3));
-    if(Math.random() < 0.25) L.pickups.push(makePickup(Math.random()<0.7 ? 'herb' : 'mushroom', e.x, e.y-8, rand(-0.8,0.8), 0.6));
+    if(Math.random() < 0.18) L.pickups.push(makePickup('herb', e.x, e.y-8, rand(-0.8,0.8), 0.6));
   }
 }
 // sau khi ha boss: mo cong ve sanh cho va cong len tang tiep
@@ -1870,7 +1870,7 @@ function drawPickup(k){
     ctx.drawImage(ic, 0, 0, ic.width, ic.height, Math.round(k.x - sw/2), Math.round(y - ic.height), sw, ic.height);
     return;
   }
-  if(ic.height > 16){ const h = 22, w = Math.round(ic.width*h/ic.height); drawIconFit(ctx, ic, Math.round(k.x - w/2), Math.round(y - h), h); return; }
+  if(ic.height > 16){ const h = ITEMS[k.kind] && ITEMS[k.kind].kind === 'Mineral' ? GEM_H : 22, w = Math.round(ic.width*h/ic.height); drawIconFit(ctx, ic, Math.round(k.x - w/2), Math.round(y - h), h); return; }
   ctx.drawImage(ic, Math.round(k.x - ic.width/2), Math.round(y - ic.height));
   if(Math.floor(k.bob*3)%9 === 0){ ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(k.x+4), Math.round(y-ic.height+1), 1, 1); }
 }
@@ -2074,7 +2074,7 @@ function drawHUD(){
   ITEM_KEYS.forEach((k,i)=>{
     const x = x0 + 6 + i*sw, y = y0 + 6;
     ctx.fillStyle = '#251f31'; ctx.fillRect(x, y, sw-4, 32);
-    const ic = ICON[k]; drawIconFit(ctx, ic, x + 6, y + 2, 26);
+    const ic = ICON[k]; const ih = k === 'herb' ? 26 : 18; drawIconFit(ctx, ic, x + 6, y + 2 + (26-ih)/2, ih);
     ctx.font = '7px "Press Start 2P", monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#ffffff';
     ctx.fillText(String(G.inv[k]), x + sw - 7, y + 28);
     if(k === 'herb'){ ctx.textAlign = 'left'; ctx.font = '6px "Press Start 2P", monospace'; ctx.fillStyle = '#7fe06a'; ctx.fillText('H', x + 3, y + 29); }
@@ -2203,13 +2203,13 @@ document.getElementById('startBtn').addEventListener('click', startGame);
 // ----- tru ban do -----
 const SHOP = [
   { id:'herb',  icon:'herb',     name:'Healing Herb',   desc:'+1 herb (press H to heal 30 HP)', base:20, grow:0 },
-  { id:'elixir',icon:'mushroom', name:'Elixir',         desc:'Restore all HP right now',        base:45, grow:0 },
+  { id:'elixir',icon:'heart',    name:'Elixir',         desc:'Restore all HP right now',        base:45, grow:0 },
   { id:'vit',   icon:'heart',    name:'Vitality Charm', desc:'+20 max HP for this run',         base:70, grow:0.5 },
   { id:'wpn',   icon:'sword',    name:'Whetstone',      desc:'+20% weapon damage',              base:80, grow:0.5 },
   { id:'spell', icon:'orb',      name:'Arcane Focus',   desc:'+20% spell damage',               base:80, grow:0.5 },
   { id:'stam',  icon:'wind',     name:'Wind Charm',     desc:'+25 max stamina (more dodges)',   base:60, grow:0.5 }
 ];
-const SELL = { amethyst:8, sapphire:12, ruby:15, emerald:15, mana:22, mushroom:5 };
+const SELL = { amethyst:8, sapphire:12, ruby:15, emerald:15, mana:22 };
 const SHOP_ICON = { heart:'❤', sword:'⚔', orb:'✦', wind:'≋' };
 function price(it){ const owned = G.up[it.id] || 0; return Math.round(it.base * (1 + it.grow*owned) * (1 + 0.04*G.floorIdx)); }
 function openShop(){ mode = 'shop'; for(const k in keys) keys[k] = false; buildShop(); show('shop'); }
@@ -2232,8 +2232,8 @@ function buildShop(msg){
   }
   const sellV = Object.keys(SELL).reduce((a,k)=> a + (G.inv[k]||0)*SELL[k], 0);
   const sb = document.getElementById('sellBtn');
-  sb.textContent = 'Sell minerals & glowcaps · +' + sellV + ' gold'; sb.disabled = sellV <= 0;
-  document.getElementById('shopMsg').textContent = msg || 'Amethyst 8 · Sapphire 12 · Ruby 15 · Emerald 15 · Mana 22 · Glowcap 5';
+  sb.textContent = 'Sell all gems · +' + sellV + ' gold'; sb.disabled = sellV <= 0;
+  document.getElementById('shopMsg').textContent = msg || 'Amethyst 8 · Sapphire 12 · Ruby 15 · Emerald 15 · Mana Crystal 22';
 }
 function buy(id){
   const it = SHOP.find(s=>s.id===id), p = price(it), P = G.player;
