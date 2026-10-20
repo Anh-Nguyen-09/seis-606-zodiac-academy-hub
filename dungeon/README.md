@@ -27,7 +27,7 @@ On mobile, use the on-screen buttons below the game.
 
 ## The tower
 
-- **15 floors, rising difficulty.** Floors 1–2 are hand-built. The other non-boss floors are generated fresh each time from rooms and corridors, and every layout is checked so the exit can always be reached. Enemy health, damage and speed scale with each floor, maps get bigger, and new enemies appear: bats from floor 3, purple spitter slimes from floor 6, giant brute slimes from floor 11.
+- **15 floors, rising difficulty.** Floors 1–2 are hand-built. The other non-boss floors are generated fresh each time from rooms and corridors, and every layout is checked so the exit can always be reached. Enemy health, damage and speed scale with each floor, maps get bigger, and new enemies appear: sonic-screeching bats and jumping mushrooms (they sit still like ordinary mushrooms until you get close) from floor 3, purple spitter slimes from floor 6, rock golems that telegraph a ground slam from floor 7, giant brute slimes from floor 11.
 - **Bosses every 5 floors.**
   - Floor 5, **Dungeon Slime King**: jump slams with a warning circle, bullet rings, and summoned slimes when enraged.
   - Floor 10, **Bat Lord**: aimed bullet fans, screech rings, and telegraphed swoops across the arena. Summons bats.

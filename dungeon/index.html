@@ -295,7 +295,9 @@ const TUNE = {
   reactionDmg: 16,       // "Steam Burst": trung phep nguoc nguyen to voi hieu ung dang co
   reactionRadius: 56,
   slime: { hp:36, speed:1.0, dmg:12, r:12, aggro:230 },
-  bat:   { hp:24, speed:1.8, dmg:9,  r:10, aggro:270 },
+  bat:   { hp:24, speed:1.8, dmg:9,  r:10, aggro:270, sonicCd:170 },       // doi: phat song am tu mieng
+  golem: { hp:95, speed:0.55, dmg:18, r:15, aggro:240, slamR:64 },         // nguoi da: cham, dap dat (tang 7+)
+  shroom:{ hp:30, speed:1.0, dmg:10, r:10, aggro:190 },                    // nam nhay: gia lam nam, nhay bo vao nguoi choi (tang 3+)
   spitter: { hp:40, speed:0.9, dmg:11, r:12, aggro:270, shootCd:150 },   // slime tim ban dich (tang 6+)
   brute: { hp:110, speed:0.8, dmg:20, r:17, aggro:230 },                  // slime khong lo (tang 11+)
   boss:  { hp:560, r:34, dmg:18 },
@@ -407,6 +409,7 @@ function tryGenMap(n){
   const put = (r, ch, tries)=>{ for(let t=0;t<(tries||20);t++){ const [x,y] = interior(r); if(free(x,y)){ g[y][x] = ch; return [x,y]; } } return null; };
   // quai: nhieu hon, da dang hon khi len cao
   const pool = ['s','s']; if(n >= 3) pool.push('b'); if(n >= 6) pool.push('p','b'); if(n >= 11) pool.push('g','p');
+  if(n >= 3) pool.push('u'); if(n >= 7) pool.push('q'); if(n >= 12) pool.push('q','u');
   for(const r of rooms){
     if(r === S) continue;
     const cnt = Math.min(6, ri(1, 2 + Math.floor(n/4)));
@@ -592,6 +595,70 @@ function batFrames(){
   }
   return out;
 }
+// Nguoi da: than khoi da, mat + loi rune phat sang. pose: 0/1 di, 2 gio tay, 3 dap
+function golemFrames(){
+  const w = 44, h = 46, out = [];
+  const inR = (x,y,x0,y0,x1,y1)=> x>=x0 && x<=x1 && y>=y0 && y<=y1;
+  for(const pose of [0,1,2,3]){
+    out.push(pixelSprite(w, h, (x,y)=>{
+      const lL = pose===1 ? 2 : 0, lR = pose===0 ? 2 : 0;
+      // chan
+      if(inR(x,y,13,36,19,45-lL) || inR(x,y,25,36,31,45-lR)) return y >= 43-(x<22?lL:lR) ? '#3e3a46' : '#615b6a';
+      // tay
+      let arm = null;
+      for(const sd of [-1,1]){
+        const ax0 = sd<0 ? 2 : 35, ax1 = sd<0 ? 9 : 42;
+        if(pose === 2){ if(inR(x,y,ax0+sd*-1,0,ax1+sd*-1,22)) arm = y < 6 ? '#9a94a0' : '#6e6878'; }
+        else if(pose === 3){ if(inR(x,y,ax0+sd*-2,24,ax1+sd*-2,45)) arm = y > 39 ? '#4a4552' : '#6e6878'; }
+        else { const sw = (pose===0) === (sd<0) ? 2 : -2; if(inR(x,y,ax0,16+sw,ax1,33+sw)) arm = y > 29+sw ? '#4a4552' : '#6e6878'; }
+      }
+      if(arm) return arm;
+      // than
+      if(inR(x,y,9,15,34,37) && !((x===9||x===34) && (y===15||y===37))){
+        if(inR(x,y,19,23,24,28)) return (x===21||x===22) || (y===25||y===26) ? '#fff0b0' : '#ffb347';   // loi rune
+        if((x+y*3)%17===0 && y>18) return '#4e4858';                                               // vet nut
+        if(inR(x,y,10,15,15,17) || inR(x,y,29,30,33,32)) return '#5a8a4a';                           // reu
+        return y < 19 ? '#9a94a0' : y > 33 ? '#55505c' : '#7a7480';
+      }
+      // dau
+      if(inR(x,y,15,4,28,15)){
+        if(y===9 && (inR(x,y,17,9,19,9) || inR(x,y,24,9,26,9))) return '#ffd27a';
+        if(y===10 && (x===18 || x===25)) return '#ff9a3c';
+        return y < 7 ? '#a8a2ae' : '#7a7480';
+      }
+      return null;
+    }, '#1a1620'));
+  }
+  return out;
+}
+// Nam nhay: mu do cham trang, than kem. 0 ngu (nam binh thuong), 1 thuc, 2 nhun, 3 bay
+function shroomFrames(){
+  const w = 28, h = 30, cx = 14, by = 29;
+  const base = (x,y,awake)=>{
+    const X = x+0.5, Y = y+0.5;
+    const dx = (X-cx)/13, dy = (Y-11)/9.5;
+    if(dx*dx+dy*dy <= 1 && Y <= 15){
+      for(const [sx,sy,r] of [[-6,6,2.2],[3,4,1.8],[8,9,1.6],[-1,9.5,1.4],[-9,11,1.2]]) if((X-cx-sx)**2+(Y-sy)**2 <= r*r) return '#fff2e6';
+      return Y > 13 ? '#8a2030' : Y < 5 ? '#e8606e' : '#c8384a';
+    }
+    if(X >= cx-5 && X <= cx+5 && Y > 15 && Y <= 27){
+      const ix = Math.floor(X), iy = Math.floor(Y), L0 = ix >= cx-5 && ix <= cx-4, R0 = ix >= cx+2 && ix <= cx+3;
+      if(awake){
+        if((L0 || R0) && (iy === 18 || iy === 19)) return '#1a1022';
+        if(iy === 17 && ((ix >= cx-6 && ix <= cx-4) || (ix >= cx+2 && ix <= cx+4))) return '#5a1018';   // may cau gian
+        if(iy >= 22 && iy <= 23 && ix >= cx-2 && ix <= cx+1) return '#5a1018';
+      } else if(iy === 19 && (L0 || R0)) return '#8a7060';
+      return X > cx+3 ? '#c8b090' : '#f0dcc0';
+    }
+    if(Y > 27 && Y <= 29 && ((X >= cx-6 && X <= cx-1) || (X >= cx+1 && X <= cx+6))) return '#b09070';
+    return null;
+  };
+  return [[1,1,0],[1,1,1],[1.18,0.78,1],[0.84,1.2,1]].map(([kx,ky,aw])=> pixelSprite(w, h, (x,y)=>{
+    const sx = cx + (x+0.5-cx)/kx - 0.5, sy = by - (by-(y+0.5))/ky - 0.5;
+    if(sx < 0 || sy < 0 || sx >= w || sy >= h) return null;
+    return base(Math.floor(sx), Math.floor(sy), aw);
+  }, '#1a0a12'));
+}
 // Chua Doi: doi lon ve cung mat do pixel (khong phong to pixel)
 function batLordFrames(){
   const w = 116, h = 76, out = [];
@@ -633,10 +700,12 @@ function buildMonsterSprites(){
   SPR.spitter = slimeFrames(36, 26, '#b05ad8', '#7a3a9a', '#d8a0f0', '#2a1036', false);
   SPR.brute = slimeFrames(50, 36, '#3aa0a0', '#24706e', '#7ee0d8', '#0e2a2a', false);
   SPR.bat = batFrames();
+  SPR.golem = golemFrames();
+  SPR.shroom = shroomFrames();
   SPR.batlord = batLordFrames();
   SPR.boss = slimeFrames(112, 100, '#7a4fc8', '#4f2f8e', '#b08af0', '#1c0e33', true, 0.42);
   SPR.emperor = slimeFrames(112, 100, '#c8443a', '#8a2626', '#ff8a6a', '#2a0808', true, 0.42);
-  for(const k of ['slime','spitter','brute','bat','batlord','boss','emperor']){
+  for(const k of ['slime','spitter','brute','bat','golem','shroom','batlord','boss','emperor']){
     SPR[k+'White'] = SPR[k].map(f=>silhouette(f,'#ffffff'));
     SPR[k+'Ice']   = SPR[k].map(f=>silhouette(f,'#8fdcff'));
     SPR[k+'Fire']  = SPR[k].map(f=>silhouette(f,'#ff8a2a'));
@@ -738,6 +807,8 @@ function startFloor(idx, hp){
     else if(ch === 'b') L.enemies.push(makeEnemy('bat', cx, cy));
     else if(ch === 'p') L.enemies.push(makeEnemy('spitter', cx, cy));
     else if(ch === 'g') L.enemies.push(makeEnemy('brute', cx, cy));
+    else if(ch === 'q') L.enemies.push(makeEnemy('golem', cx, cy));
+    else if(ch === 'u') L.enemies.push(makeEnemy('shroom', cx, cy));
     else if(ch === 'K'){ if(F.boss){ const b = makeBoss(F.boss, cx, cy+20); L.enemies.push(b); L.boss = b; L.bossSpawn = {x:cx, y:cy+20}; } }
     else if(ch === 'S'){ L.shop = {x:cx, y:cy}; L.solids.push({x:cx-12, y:cy-10, w:24, h:10}); }
     else if(ch === 'C') L.chests.push({x:cx, y:cy, open:false, big: !!F.boss || (n >= 6 && Math.random() < 0.25)});
@@ -834,7 +905,7 @@ function retryFloor(){
   startFloor(G.floorIdx, s.hp);
 }
 
-const CY_OFF = { slime:11, spitter:11, brute:15, bat:22, boss:34, batlord:40 };
+const CY_OFF = { slime:11, spitter:11, brute:15, bat:22, golem:22, shroom:12, boss:34, batlord:40 };
 function makeEnemy(type, x, y){
   const T = TUNE[type], hp = Math.round(T.hp * (G.hpMul||1));
   return { type, spr:type, x, y, hp, maxHp:hp, r:T.r, dmg:Math.round(T.dmg*(G.dmgMul||1)), spd:(G.spdMul||1), cyOff:CY_OFF[type],
@@ -1314,7 +1385,8 @@ function damageEnemy(e, dmg, el, kx, ky){
   text(c.x + rand(-6,6), c.y - (e.isBoss?44:18), String(dmg), el==='fire' ? '#ffb347' : el==='ice' ? '#bfefff' : '#ffffff');
   if(el && ((el==='fire' && e.slow > 0) || (el==='ice' && e.burn > 0))) steamBurst(e);
   else if(el) EL[el].status(e);
-  if(!e.isBoss){ const kb = e.type==='brute' ? 1.2 : 2.4; e.vx += kx*kb; e.vy += ky*kb; }
+  if(!e.isBoss && e.state === 'idle') e.state = 'chase';   // bi danh thi thuc day
+  if(!e.isBoss){ const kb = e.type==='golem' ? 0.5 : e.type==='brute' ? 1.2 : 2.4; e.vx += kx*kb; e.vy += ky*kb; }
   if(e.isBoss && !G.bossAwake) wakeBoss();
   if(e.hp <= 0) killEnemy(e);
 }
@@ -1335,9 +1407,9 @@ function steamBurst(src){
 }
 const KILL_COL = {
   slime:['#5fc85a','#a6ee82','#3a9440'], spitter:['#b05ad8','#d8a0f0','#7a3a9a'], brute:['#3aa0a0','#7ee0d8','#24706e'],
-  bat:['#5a3a78','#8a5ab8','#2e1a3e'], boss:['#7a4fc8','#b08af0','#f3c45a'], batlord:['#8a2040','#d04a6a','#f3c45a'], emperor:['#c8443a','#ff8a6a','#f3c45a']
+  bat:['#5a3a78','#8a5ab8','#2e1a3e'], golem:['#7a7480','#9a94a0','#ffb347'], shroom:['#c8384a','#f0dcc0','#fff2e6'], boss:['#7a4fc8','#b08af0','#f3c45a'], batlord:['#8a2040','#d04a6a','#f3c45a'], emperor:['#c8443a','#ff8a6a','#f3c45a']
 };
-const GOLD_DROP = { slime:3, bat:3, spitter:5, brute:10 };
+const GOLD_DROP = { slime:3, bat:3, spitter:5, brute:10, golem:8, shroom:4 };
 function killEnemy(e){
   e.dead = true; G.kills++;
   const c = enemyCenter(e), L = G.L, cols = KILL_COL[e.spr] || KILL_COL.slime;
@@ -1407,9 +1479,65 @@ function updateEnemies(){
       const T = TUNE.bat;
       if(d < T.aggro) e.state = 'chase';
       let mx = Math.cos(e.t*0.05)*0.6, my = Math.sin(e.t*0.07)*0.6;
-      if(e.state === 'chase'){ const w = Math.sin(e.t*0.12)*0.9; mx = (ux - uy*w)*T.speed; my = (uy + ux*w)*T.speed; }
+      if(e.cd === undefined) e.cd = ri(60, T.sonicCd);
+      if(e.atkT > 0){
+        // gong mieng lay hoi -> phat song am
+        e.atkT--; mx = -ux*0.3; my = -uy*0.3;
+        if(e.atkT === 0){
+          const c = enemyCenter(e), a = Math.atan2(P.y-22-c.y, P.x-c.x);
+          bossBullet(c.x + Math.cos(a)*6, c.y + 3, a, 2.7, 'sonic', e.dmg);
+          G.L.bullets[G.L.bullets.length-1].life = 130;
+          G.L.rings.push({x:c.x, y:c.y+3, r:4, max:22, life:12, maxLife:12, color:'#cdb8ff', w:2});
+          e.cd = T.sonicCd + ri(-20, 30);
+        }
+      } else if(e.state === 'chase'){
+        const w = Math.sin(e.t*0.12)*0.9; mx = (ux - uy*w)*T.speed; my = (uy + ux*w)*T.speed;
+        if(--e.cd <= 0 && d < 240) e.atkT = 26;
+      }
       moveBody(L, e, mx*spdMul, my*spdMul, 8, 6);
-      e.frame = Math.floor(e.t/7)%2;
+      e.frame = Math.floor(e.t/(e.atkT > 0 ? 3 : 7))%2;
+    } else if(e.type === 'golem'){
+      const T = TUNE.golem;
+      if(d < T.aggro) e.state = 'chase';
+      if(e.cd === undefined) e.cd = 40;
+      if(e.atk === 'slam'){
+        e.atkT--;
+        if(e.atkT === 14){
+          // dap xuong dat: song chan rung quanh than
+          shake(6);
+          G.L.rings.push({x:e.x, y:e.y, r:8, max:T.slamR, life:16, maxLife:16, color:'#ffb347', w:4});
+          for(let i=0;i<18;i++){ const a = Math.random()*Math.PI*2; part({x:e.x+Math.cos(a)*rand(10,T.slamR), y:e.y+Math.sin(a)*rand(6,T.slamR*0.6), vx:Math.cos(a)*rand(0.4,1.4), vy:rand(-1.6,-0.4), life:rand(18,30), size:rand(2,4), color:i%2?'#7a7480':'#a8a2ae', grav:0.1}); }
+          if(Math.hypot(P.x-e.x, (P.y-e.y)*1.3) < T.slamR) hurtPlayer(e.dmg, e.x, e.y);
+        }
+        e.frame = e.atkT > 14 ? 2 : 3;
+        if(e.atkT <= 0){ e.atk = null; e.cd = 80; }
+      } else {
+        if(e.state === 'chase' && d > 30) moveBody(L, e, ux*T.speed*spdMul, uy*T.speed*spdMul, 12, 8);
+        e.cd--;
+        if(e.state === 'chase' && d < 58 && e.cd <= 0){ e.atk = 'slam'; e.atkT = 48; }
+        e.frame = e.state === 'chase' ? Math.floor(e.t/16)%2 : 0;
+      }
+    } else if(e.type === 'shroom'){
+      const T = TUNE.shroom;
+      if(e.state === 'idle' && d < T.aggro){ e.state = 'chase'; e.cd = 24; text(e.x, e.y-38, '!', '#ff6a7a'); }
+      if(e.state === 'chase'){
+        if(e.jump > 0){
+          e.jump--; const k = 1 - e.jump/34;
+          moveBody(L, e, e.jx*spdMul, e.jy*spdMul, 8, 6);
+          e.z = Math.sin(Math.PI*k)*40; e.frame = 3;
+          if(e.jump === 0){
+            e.z = 0; e.cd = 46;
+            G.L.rings.push({x:e.x, y:e.y, r:4, max:24, life:12, maxLife:12, color:'#f0dcc0', w:2});
+            for(let i=0;i<8;i++) part({x:e.x+rand(-10,10), y:e.y, vx:rand(-1,1), vy:rand(-1,-0.2), life:20, size:rand(2,3), kind:'puff', color:'rgba(230,200,190,0.45)'});
+          }
+        } else {
+          e.cd--; e.frame = e.cd < 16 ? 2 : 1;
+          if(e.cd <= 0){
+            const tx = P.x - e.x, ty = P.y - e.y, L0 = Math.hypot(tx, ty) || 1, reach = Math.min(L0, 140);
+            e.jx = tx/L0*reach/34; e.jy = ty/L0*reach/34; e.jump = 34;
+          }
+        }
+      } else e.frame = 0;
     } else if(e.type === 'boss'){
       updateBoss(e, d, ux, uy, spdMul);
     } else if(e.type === 'batlord'){
@@ -1420,7 +1548,7 @@ function updateEnemies(){
     if(Math.abs(ux) > 0.2) e.face = ux > 0 ? 1 : -1;
     // va cham voi nguoi choi
     const c = enemyCenter(e);
-    if(e.type !== 'boss' || e.atk !== 'jump'){
+    if((e.type !== 'boss' || e.atk !== 'jump') && e.type !== 'golem' && !(e.type === 'shroom' && e.z > 10)){
       if(dist(c.x, c.y, P.x, P.y-20) < e.r + 14) hurtPlayer(e.dmg, c.x, c.y);
     }
   }
@@ -1430,6 +1558,7 @@ const BULLET_LOOK = {
   boss:  { glow0:'rgba(200,140,255,0.9)', glow1:'rgba(140,60,255,0)', core:'#2a0e4a', hi:'#e6c8ff', part:'#c08aff', light:'#b070ff' },
   spit:  { glow0:'rgba(220,150,255,0.9)', glow1:'rgba(170,60,220,0)', core:'#3a1048', hi:'#f4d8ff', part:'#d8a0f0', light:'#c070f0' },
   blood: { glow0:'rgba(255,120,140,0.9)', glow1:'rgba(220,40,70,0)',  core:'#4a0a18', hi:'#ffd0d8', part:'#ff7a8a', light:'#ff5a6a' },
+  sonic: { glow0:'rgba(200,180,255,0.6)', glow1:'rgba(140,110,255,0)', core:'#cdb8ff', hi:'#ffffff', part:'#cdb8ff', light:'#9a80ff' },
   ember: { glow0:'rgba(255,170,110,0.9)', glow1:'rgba(230,70,40,0)',  core:'#4a1408', hi:'#ffe0c0', part:'#ff9a6a', light:'#ff7a40' }
 };
 function bossBullet(x, y, a, s, look, dmg){ G.L.bullets.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:220, look:look||'boss', dmg: dmg || Math.round(TUNE.bulletDmg*(G.dmgMul||1))}); }
@@ -1593,7 +1722,7 @@ function updateCombat(){
     light(b.x, b.y, 36, BL.light, 0.7);
     if(blocked(L, b.x, b.y+4, 2, 2, false)){ b.life = 0; for(let i=0;i<5;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:14,size:2,color:BL.part,add:true}); }
     else if(P.shield > 0 && dist(b.x, b.y, P.x, P.y-22) < 30){ b.life = 0; for(let i=0;i<6;i++) part({x:b.x,y:b.y,vx:rand(-1.5,1.5),vy:rand(-1.5,1.5),life:14,size:2,color:'#ffe39a',add:true}); }
-    else if(P.dodge <= 0 && dist(b.x, b.y, P.x, P.y-22) < 13){ b.life = 0; hurtPlayer(b.dmg, b.x, b.y); }
+    else if(P.dodge <= 0 && dist(b.x, b.y, P.x, P.y-22) < (b.look === 'sonic' ? 17 : 13)){ b.life = 0; hurtPlayer(b.dmg, b.x, b.y); }
     else if(P.dodge > 0 && dist(b.x, b.y, P.x, P.y-22) < 13 && P.blockT <= 0){ P.blockT = 20; text(P.x, P.y-64, 'Dodged!', '#cdf3ff'); }
   }
   L.bullets = L.bullets.filter(b=>b.life > 0);
@@ -1731,6 +1860,13 @@ function drawEnemy(e){
     ctx.save(); ctx.strokeStyle = 'rgba(255,60,90,' + (0.25 + 0.35*Math.abs(Math.sin(e.t*0.3))) + ')'; ctx.lineWidth = 18; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(e.x, e.y-4); ctx.lineTo(e.x + Math.cos(a)*L2, e.y - 4 + Math.sin(a)*L2); ctx.stroke(); ctx.restore();
   }
+  if(e.type === 'golem' && e.atk === 'slam' && e.atkT > 14){
+    // vong canh bao truoc khi dap
+    const t = (48 - e.atkT)/34, R = TUNE.golem.slamR;
+    ctx.strokeStyle = 'rgba(255,150,60,' + (0.25 + t*0.5) + ')'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(e.x, e.y, R, R/1.3, 0, 0, 7); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,120,40,' + (t*0.15) + ')'; ctx.beginPath(); ctx.ellipse(e.x, e.y, R*t, R*t/1.3, 0, 0, 7); ctx.fill();
+  }
   const flip = (e.type === 'bat' || e.type === 'batlord') ? false : e.face < 0;
   ctx.save();
   if(flip){ ctx.translate(dx + f.width, dy); ctx.scale(-1, 1); } else ctx.translate(dx, dy);
@@ -1741,15 +1877,17 @@ function drawEnemy(e){
   if(e.isBoss && e.phase === 2) tint('Rage', 0.18 + 0.1*Math.sin(e.t*0.15));
   if((e.type === 'boss' && e.atk === 'volley') || (e.type === 'batlord' && (e.atk === 'ring' || e.atk === 'fan'))) tint('White', 0.25 + 0.25*Math.sin(e.t*0.6));
   if(e.type === 'spitter' && e.t % TUNE.spitter.shootCd > 55 && e.t % TUNE.spitter.shootCd < 75 && e.state === 'chase') tint('White', 0.35);
+  if(e.type === 'bat' && e.atkT > 0) tint('White', 0.3 + 0.3*Math.sin(e.t*0.9));
   if(e.flash > 0) tint('White', 0.85);
   ctx.restore();
   if(!e.isBoss && e.hp < e.maxHp){
-    const w = e.type === 'brute' ? 36 : 26, x = Math.round(e.x - w/2), y = dy - 6;
+    const w = e.type === 'brute' || e.type === 'golem' ? 34 : 26, x = Math.round(e.x - w/2), y = dy - 6;
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x-1, y-1, w+2, 5);
     ctx.fillStyle = '#e2445c'; ctx.fillRect(x, y, Math.round(w*e.hp/e.maxHp), 3);
   }
   if(e.isBoss) light(e.x, e.y-36-z, 120, e.type === 'batlord' ? '#ff4a6a' : e.spr === 'emperor' ? '#ff7a40' : '#b070ff', 0.5);
   if(e.type === 'bat') light(e.x, e.y-22, 34, '#ff5a5a', 0.55);
+  if(e.type === 'golem') light(e.x, e.y-22, 40, '#ffb347', 0.5);
 }
 function drawBolt(b){
   if(!b.el){
@@ -1955,6 +2093,17 @@ function render(){
   for(const w of L.swings) drawSwing(w);
   for(const n of L.novas) drawNova(n);
   for(const b of L.bullets){
+    if(b.look === 'sonic'){
+      // song am: 3 vong cung no rong dan theo huong bay
+      const a = Math.atan2(b.vy, b.vx), age = 130 - b.life;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+      for(let i=0;i<3;i++){
+        const r = 6 + i*5 + Math.min(4, age*0.06), sp = 0.75 - i*0.12, cx0 = b.x - Math.cos(a)*12, cy0 = b.y - Math.sin(a)*12;
+        ctx.strokeStyle = 'rgba(205,184,255,' + (0.45 + i*0.22) + ')'; ctx.lineWidth = 1.5 + i*0.5;
+        ctx.beginPath(); ctx.arc(cx0, cy0, r, a - sp, a + sp); ctx.stroke();
+      }
+      ctx.restore(); continue;
+    }
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const BL = BULLET_LOOK[b.look] || BULLET_LOOK.boss;
     const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, 10); g.addColorStop(0, BL.glow0); g.addColorStop(1, BL.glow1);
@@ -2329,6 +2478,7 @@ requestAnimationFrame(frame);
 window.__dungeon = { raiseShield:()=>raiseShield(), hurtPlayer:(d,x,y)=>hurtPlayer(d,x,y), get G(){ return G; }, get mode(){ return mode; }, pick, TUNE, WEAPONS,
   startGame, swapElement:()=>swapElement(), weaponAttack:()=>weaponAttack(), nextFloor:()=>nextFloor(), damageEnemy,
   startFloor:(i,hp)=>startFloor(i,hp), genMap, floorMap, bfsTiles, openShop, buy, goLobby, continueRun, interact:()=>interact(), get RECORDS(){ return RECORDS; },
+  makeEnemy:(t,x,y)=>makeEnemy(t,x,y), SPR,
   setMode:m=>{ mode = m; show(null); } };
 })();
 </script>
