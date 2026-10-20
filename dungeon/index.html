@@ -308,20 +308,20 @@ const TUNE = {
 };
 
 // Vu khi rieng tung nhan vat (L). type: arc = chem vong cung, thrust = dam thang, throw = phong dan
-// hits: so nhat moi lan danh (gang chien/song truong/song phien = 2), count/spread: so dan khi nem, pierce: vong phi bay xuyen quai
+// hits: so nhat moi lan danh (song kiem/song dao/song riu = 2), count/spread: so dan khi nem
 const WEAPONS = {
-  aries:       { name:'War Gauntlets',    type:'thrust', dmg:9,  range:34, arc:0.9, cd:13, kb:3, hits:2 },
+  aries:       { name:'Halberd',          type:'arc',    dmg:20, range:50, arc:2.3, cd:34, kb:4 },
   taurus:      { name:'Greatsword',       type:'arc',    dmg:26, range:46, arc:2.6, cd:42, kb:5 },
-  gemini:      { name:'Twin Staves',      type:'arc',    dmg:9,  range:46, arc:2.4, cd:22, kb:2, hits:2 },
-  cancer:      { name:'Magic Shield',     type:'thrust', dmg:14, range:40, arc:1.2, cd:26, kb:7 },
+  gemini:      { name:'Rapier',           type:'thrust', dmg:15, range:54, arc:0.55, cd:16, kb:2 },
+  cancer:      { name:'Spear',            type:'thrust', dmg:18, range:62, arc:0.5, cd:24, kb:3 },
   leo:         { name:'Sword',            type:'arc',    dmg:17, range:40, arc:2.0, cd:22, kb:3 },
-  virgo:       { name:'Magic Staff',      type:'arc',    dmg:14, range:48, arc:2.0, cd:24, kb:3 },
-  libra:       { name:'Twin Fans',        type:'arc',    dmg:9,  range:44, arc:2.6, cd:22, kb:2, hits:2 },
-  scorpio:     { name:'Throwing Darts',   type:'throw',  dmg:9,  cd:26, count:3, spread:0.22, speed:6.5, proj:'knife' },
+  virgo:       { name:'Twin Swords',      type:'arc',    dmg:10, range:40, arc:2.1, cd:22, kb:2, hits:2 },
+  libra:       { name:'Twin Daggers',     type:'thrust', dmg:8,  range:34, arc:0.9, cd:12, kb:1, hits:2 },
+  scorpio:     { name:'Throwing Knives',  type:'throw',  dmg:9,  cd:26, count:3, spread:0.22, speed:6.5, proj:'knife' },
   sagittarius: { name:'Bow',              type:'throw',  dmg:18, cd:30, count:1, spread:0, speed:8, proj:'arrow' },
-  capricorn:   { name:'Mace',             type:'arc',    dmg:24, range:42, arc:2.0, cd:38, kb:5 },
-  aquarius:    { name:'Chakram',          type:'throw',  dmg:14, cd:34, count:1, spread:0, speed:6, proj:'chakram', pierce:true },
-  pisces:      { name:'Spellbook',        type:'thrust', dmg:14, range:50, arc:0.9, cd:24, kb:3 }
+  capricorn:   { name:'Twin Axes',        type:'arc',    dmg:13, range:40, arc:2.2, cd:28, kb:3, hits:2 },
+  aquarius:    { name:'Scythe',           type:'arc',    dmg:18, range:56, arc:3.6, cd:36, kb:3 },
+  pisces:      { name:'Trident',          type:'thrust', dmg:14, range:58, arc:0.75, cd:24, kb:3, prongs:3 }
 };
 
 // ----- THAP 15 TANG -----
@@ -1196,7 +1196,7 @@ function weaponAttack(){
     const h = handPos();
     for(let i=0;i<Wp.count;i++){
       const a = ang + (i-(Wp.count-1)/2)*Wp.spread;
-      G.L.bolts.push({ x:h.x, y:h.y, vx:Math.cos(a)*Wp.speed, vy:Math.sin(a)*Wp.speed, life:55, el:null, proj:Wp.proj, pierce:!!Wp.pierce, hitSet:new Set(), dmg:Wp.dmg*wpnMul(), ang:a, spin:0 });
+      G.L.bolts.push({ x:h.x, y:h.y, vx:Math.cos(a)*Wp.speed, vy:Math.sin(a)*Wp.speed, life:55, el:null, proj:Wp.proj, dmg:Wp.dmg*wpnMul(), ang:a, spin:0 });
     }
     return;
   }
@@ -1694,8 +1694,6 @@ function updateCombat(){
     if(!hit) for(const e of L.enemies){
       if(e.dead || (e.type==='boss' && e.atk==='jump' && e.z > 20)) continue;
       const c = enemyCenter(e);
-      if(b.pierce && b.hitSet.has(e)) continue;
-      if(b.pierce && dist(b.x, b.y, c.x, c.y) < e.r + 11){ b.hitSet.add(e); damageEnemy(e, b.dmg, null, Math.sign(b.vx), Math.sign(b.vy)); hitSpark(b.x, b.y, b.ang+Math.PI); continue; }
       if(dist(b.x, b.y, c.x, c.y) < e.r + (b.el ? 5 : 9)){ damageEnemy(e, b.dmg, b.el, Math.sign(b.vx), Math.sign(b.vy)); if(!b.el) hitSpark(b.x, b.y, b.ang+Math.PI); hit = true; break; }
     }
     if(hit || b.life <= 0){ if(b.el) EL[b.el].impact(b.x, b.y, false); else if(!hit) for(let i=0;i<4;i++) part({x:b.x,y:b.y,vx:rand(-1,1),vy:rand(-1.5,0),life:10,size:1.5,color:'#9aa0b0',grav:0.1}); b.life = -1; }
@@ -1894,13 +1892,7 @@ function drawEnemy(e){
 function drawBolt(b){
   if(!b.el){
     ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.ang);
-    if(b.proj === 'chakram'){
-      // vong phi xoay tron
-      ctx.rotate(b.spin*2);
-      ctx.strokeStyle = '#cfe6ff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, 6, 0, 7); ctx.stroke();
-      ctx.fillStyle = '#ffffff'; for(let i=0;i<4;i++){ const a = i*Math.PI/2; ctx.beginPath(); ctx.moveTo(Math.cos(a)*9, Math.sin(a)*9); ctx.lineTo(Math.cos(a+0.5)*5.5, Math.sin(a+0.5)*5.5); ctx.lineTo(Math.cos(a-0.3)*5.5, Math.sin(a-0.3)*5.5); ctx.closePath(); ctx.fill(); }
-      ctx.fillStyle = '#5a7aa8'; ctx.fillRect(-1,-1,2,2);
-    } else if(b.proj === 'arrow'){
+    if(b.proj === 'arrow'){
       ctx.fillStyle = '#8a6a44'; ctx.fillRect(-12,-1,16,2);
       ctx.fillStyle = '#e8ecf4'; ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(3,-3); ctx.lineTo(3,3); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#d8d0c0'; ctx.fillRect(-14,-3,4,2); ctx.fillRect(-14,1,4,2);

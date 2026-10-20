@@ -41,7 +41,7 @@ On mobile, use the on-screen buttons below the game.
 ## Combat
 
 - **Magic:** one shared spell set in two elements, swappable at any time with Q. Ice slows enemies; fire burns them over time. Hitting a slowed enemy with fire, or a burning enemy with ice, sets off a **Steam Burst** that damages everything nearby.
-- **Weapons:** every character fights with a signature weapon: wide arcs (greatsword, sword, twin staves, magic staff, twin fans, mace), close thrusts (war gauntlets, magic shield shove, spellbook) or ranged throws (throwing darts, bow, and a chakram that flies through every enemy in its path). Melee swings soft-aim at the nearest enemy, always connect with enemies right next to you, and cut through enemy bullets.
+- **Weapons:** every character fights with a signature weapon: wide arcs (halberd, greatsword, sword, twin swords, twin axes, scythe), fast thrusts (rapier, spear, twin daggers, trident) or ranged throws (throwing knives, bow). Melee swings soft-aim at the nearest enemy, always connect with enemies right next to you, and cut through enemy bullets.
 - **Defense:** a stamina-based dodge (dash through attacks and bullets) and a timed shield with an on-screen countdown.
 
 ## Tuning
