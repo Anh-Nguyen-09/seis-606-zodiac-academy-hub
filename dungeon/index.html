@@ -1385,7 +1385,18 @@ function enterLobbyPortal(){
 const SAVE_KEY = 'astraeum-tower-save', REC_KEY = 'astraeum-tower-records';
 function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } }
 function storeJSON(k, v){ try{ if(v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
-let RECORDS = loadJSON(REC_KEY) || { floors:{}, best:0, clears:0 };
+// ban luu co the bi sua tay trong DevTools: chi nhan du lieu dung kieu, sai thi bo qua (khong lam sap game)
+function loadSave(){
+  const raw = loadJSON(SAVE_KEY);
+  const num = (v, lo, hi)=> typeof v === 'number' && isFinite(v) && v >= lo && v <= hi;
+  if(!raw || typeof raw !== 'object' || !CHAR_LAYOUT[raw.char] || !WEAPONS[raw.char] || !EL[raw.el] || !Number.isInteger(raw.floor) || !num(raw.floor, 1, FLOOR_COUNT)
+     || !num(raw.hp, 1, 1e6) || !num(raw.gold || 0, 0, 1e7)) return null;
+  for(const k of ['inv','found','up']) if(raw[k] != null && typeof raw[k] !== 'object') return null;
+  for(const k in (raw.inv||{})) if(!num(raw.inv[k], 0, 1e6)) return null;
+  return raw;
+}
+let RECORDS = loadJSON(REC_KEY);
+if(!RECORDS || typeof RECORDS !== 'object' || !RECORDS.floors || typeof RECORDS.floors !== 'object') RECORDS = { floors:{}, best:0, clears:0 };
 // luu o dau tang (floorNum: tang se choi khi "Choi tiep")
 function saveRun(floorNum, hp){
   const st = G.floorStart, atStart = floorNum == null;
@@ -1405,7 +1416,7 @@ function recordFloor(){
   storeJSON(REC_KEY, RECORDS);
 }
 function continueRun(){
-  const S = loadJSON(SAVE_KEY); if(!S) return false;
+  const S = loadSave(); if(!S) return false;
   pick.id = S.char; pick.el = S.el;
   G = Object.assign(blankRun(), { char:S.char, el:S.el, gold:S.gold||0, goldFound:S.goldFound||0, inv:Object.assign(EMPTY_INV(), S.inv), found:Object.assign(EMPTY_INV(), S.found), up:S.up||{vit:0,wpn:0,spell:0,stam:0},
     kills:S.kills||0, chests:S.chests||0, time:S.time||0 });
@@ -2367,7 +2378,7 @@ const charName = id=> (ROSTER.find(r=>r[0]===id)||[0,'?'])[1];
 let newArmed = false;
 function goLobby(){ mode = 'lobby'; G = null; buildLobby(); show('lobby'); }
 function buildLobby(){
-  const S = loadJSON(SAVE_KEY);
+  const S = loadSave();
   newArmed = false;
   document.getElementById('newBtn').textContent = '✦ New game';
   document.getElementById('newWarn').textContent = '';
@@ -2404,7 +2415,7 @@ function buildLobby(){
 }
 document.getElementById('contBtn').addEventListener('click', ()=>{ if(continueRun()){ mode = 'play'; show(null); } });
 document.getElementById('newBtn').addEventListener('click', ()=>{
-  if(loadJSON(SAVE_KEY) && !newArmed){
+  if(loadSave() && !newArmed){
     newArmed = true;
     document.getElementById('newBtn').textContent = '✦ Click again to confirm';
     document.getElementById('newWarn').textContent = 'Starting over replaces your saved run. Floor records are kept.';
