@@ -308,20 +308,20 @@ const TUNE = {
 };
 
 // Vu khi rieng tung nhan vat (L). type: arc = chem vong cung, thrust = dam thang, throw = phong dan
-// hits: so nhat moi lan danh (song kiem/song dao/song riu = 2), count/spread: so dan khi nem
+// hits: so nhat moi lan danh, count/spread: so dan khi nem. fx: kieu hieu ung rieng, col: mau vet chem (r,g,b)
 const WEAPONS = {
-  aries:       { name:'Halberd',          type:'arc',    dmg:20, range:50, arc:2.3, cd:34, kb:4 },
-  taurus:      { name:'Greatsword',       type:'arc',    dmg:26, range:46, arc:2.6, cd:42, kb:5 },
-  gemini:      { name:'Rapier',           type:'thrust', dmg:15, range:54, arc:0.55, cd:16, kb:2 },
-  cancer:      { name:'Spear',            type:'thrust', dmg:18, range:62, arc:0.5, cd:24, kb:3 },
-  leo:         { name:'Sword',            type:'arc',    dmg:17, range:40, arc:2.0, cd:22, kb:3 },
-  virgo:       { name:'Twin Swords',      type:'arc',    dmg:10, range:40, arc:2.1, cd:22, kb:2, hits:2 },
-  libra:       { name:'Twin Daggers',     type:'thrust', dmg:8,  range:34, arc:0.9, cd:12, kb:1, hits:2 },
-  scorpio:     { name:'Throwing Knives',  type:'throw',  dmg:9,  cd:26, count:3, spread:0.22, speed:6.5, proj:'knife' },
-  sagittarius: { name:'Bow',              type:'throw',  dmg:18, cd:30, count:1, spread:0, speed:8, proj:'arrow' },
-  capricorn:   { name:'Twin Axes',        type:'arc',    dmg:13, range:40, arc:2.2, cd:28, kb:3, hits:2 },
-  aquarius:    { name:'Scythe',           type:'arc',    dmg:18, range:56, arc:3.6, cd:36, kb:3 },
-  pisces:      { name:'Trident',          type:'thrust', dmg:14, range:58, arc:0.75, cd:24, kb:3, prongs:3 }
+  aries:       { name:'Halberd',          type:'arc',    dmg:20, range:50, arc:2.3, cd:34, kb:4, fx:'halberd', col:'255,170,110' },   // dam mui kich roi quet luoi riu
+  taurus:      { name:'Greatsword',       type:'arc',    dmg:26, range:46, arc:2.6, cd:42, kb:5, fx:'heavy',   col:'255,225,160' },   // bo doc xuong, nen dat
+  gemini:      { name:'Rapier',           type:'thrust', dmg:9,  range:54, arc:0.55, cd:16, kb:2, fx:'rapier', col:'230,240,255', hits:2, gap:5 },  // 2 nhat dam nhanh
+  cancer:      { name:'Spear',            type:'thrust', dmg:18, range:62, arc:0.5, cd:24, kb:3, fx:'spear',   col:'170,230,255' },   // lui mot nhip roi dam xa
+  leo:         { name:'Sword',            type:'arc',    dmg:17, range:40, arc:2.0, cd:22, kb:3, fx:'sword',   col:'255,215,120' },   // chem ngang vong cung
+  virgo:       { name:'Twin Swords',      type:'arc',    dmg:10, range:40, arc:2.1, cd:22, kb:2, fx:'twin',    col:'215,200,255', hits:2 },   // 2 nhat cheo hinh chu X
+  libra:       { name:'Twin Daggers',     type:'thrust', dmg:8,  range:34, arc:0.9, cd:12, kb:1, fx:'dagger',  col:'235,235,245', hits:2, gap:4 },   // dam luan phien 2 tay
+  scorpio:     { name:'Throwing Knives',  type:'throw',  dmg:9,  cd:26, count:3, spread:0.22, speed:6.5, proj:'knife', col:'200,120,255' },
+  sagittarius: { name:'Bow',              type:'throw',  dmg:18, cd:30, count:1, spread:0, speed:8, proj:'arrow', col:'170,255,170' },
+  capricorn:   { name:'Twin Axes',        type:'arc',    dmg:13, range:40, arc:2.2, cd:28, kb:3, fx:'axe',     col:'255,160,90', hits:2, gap:0 },    // 2 riu bo cheo cung luc
+  aquarius:    { name:'Scythe',           type:'arc',    dmg:18, range:56, arc:3.6, cd:36, kb:3, fx:'scythe',  col:'140,240,230' },   // quet vong rong tu sau ra truoc
+  pisces:      { name:'Trident',          type:'thrust', dmg:14, range:58, arc:0.75, cd:24, kb:3, fx:'trident', col:'120,190,255', prongs:3 }  // dam 3 mui
 };
 
 // ----- THAP 15 TANG -----
@@ -1200,11 +1200,27 @@ function weaponAttack(){
     }
     return;
   }
-  const hits = Wp.hits || 1;
-  for(let i=0;i<hits;i++){
-    // song vu khi: nhat thu 2 chem nguoc chieu
-    G.L.swings.push({ delay:i*7, t:0, max: Wp.type==='arc' ? 12 : 9, type:Wp.type, ang, range:Wp.range, arc:Wp.arc, dmg:Wp.dmg*wpnMul(), kb:Wp.kb,
-      dir: i%2 ? -1 : 1, prongs:Wp.prongs||1, hit:new Set(), done:false });
+  const base = { t:0, range:Wp.range, arc:Wp.arc, dmg:Wp.dmg*wpnMul(), kb:Wp.kb, prongs:Wp.prongs||1, fx:Wp.fx, col:Wp.col||'200,215,255', off:0, side:0 };
+  const push = o => G.L.swings.push(Object.assign({}, base, { delay:0, type:Wp.type, ang, dir:1, max: (o.type||Wp.type)==='arc' ? 12 : 9, hit:new Set(), done:false }, o));
+  if(Wp.fx === 'halberd'){
+    // dam mui kich truoc, roi quet ngang luoi riu
+    push({ type:'thrust', max:9, arc:0.6, range:Wp.range + 6, dmg:base.dmg*0.5, kb:2 });
+    push({ delay:8, max:13 });
+  } else if(Wp.fx === 'spear'){
+    push({ max:12 });           // co nhip lui truoc khi dam
+  } else if(Wp.fx === 'scythe'){
+    push({ dir:-1, max:15 });   // quet tu sau ra truoc, cham hon
+  } else if(Wp.fx === 'heavy'){
+    push({ max:14 });
+  } else {
+    const hits = Wp.hits || 1, gap = Wp.gap !== undefined ? Wp.gap : 7;
+    for(let i=0;i<hits;i++){
+      const o = { delay:i*gap, dir: i%2 ? -1 : 1 };
+      if(Wp.fx === 'twin') o.off = i%2 ? 0.32 : -0.32;               // 2 duong cheo thanh chu X
+      if(Wp.fx === 'axe'){ o.off = i%2 ? 0.38 : -0.38; o.max = 13; }   // 2 riu bo cung luc tu 2 ben
+      if(Wp.fx === 'dagger' || Wp.fx === 'rapier') o.side = i%2 ? 1 : -1; // tay trai / tay phai
+      push(o);
+    }
   }
 }
 function angDiff(a, b){ let d = a - b; while(d > Math.PI) d -= Math.PI*2; while(d < -Math.PI) d += Math.PI*2; return Math.abs(d); }
@@ -1214,6 +1230,20 @@ function updateSwings(){
     if(w.delay > 0){ w.delay--; continue; }
     w.t++;
     const ox = P.x, oy = P.y - 20;
+    if(w.t === 5 && (w.fx === 'heavy' || w.fx === 'axe')){
+      const a = w.ang + w.off, tx = ox + Math.cos(a)*w.range*0.8, ty = oy + Math.sin(a)*w.range*0.8 + 14;
+      if(w.fx === 'heavy'){
+        shake(5); G.L.rings.push({x:tx, y:ty, r:4, max:34, life:14, maxLife:14, color:'rgba(' + w.col + ',1)', w:3});
+        for(let i=0;i<10;i++) part({x:tx+rand(-12,12), y:ty+rand(-4,4), vx:rand(-1.4,1.4), vy:rand(-1.6,-0.3), life:rand(16,26), size:rand(3,6), kind:'puff', color:'rgba(200,190,170,0.45)'});
+      } else for(let i=0;i<6;i++) part({x:tx, y:ty-10, vx:rand(-2,2), vy:rand(-2.4,-0.6), life:rand(10,18), size:2, color:i%2?'#ffb070':'#ffe0a0', add:true, grav:0.15});
+    }
+    if(w.fx === 'rapier' && w.t === 3){
+      const a = w.ang, ex = ox + Math.cos(a)*w.range, ey = oy + Math.sin(a)*w.range;
+      part({x:ex, y:ey, life:12, size:5, kind:'glint', color:'#ffffff'});
+    }
+    if(w.fx === 'trident' && w.t === 4){
+      for(let i=0;i<6;i++){ const a = w.ang + rand(-0.3,0.3); part({x:ox+Math.cos(a)*w.range, y:oy+Math.sin(a)*w.range, vx:Math.cos(a)*rand(0.5,1.8), vy:Math.sin(a)*rand(0.5,1.8)-0.6, life:rand(12,20), size:2, color:'#9fd8ff', add:true, grav:0.08}); }
+    }
     // vung sat thuong mo dan theo duong chem (tinh tu frame 1-4)
     if(w.t <= 6){
       for(const e of L.enemies){
@@ -1226,7 +1256,7 @@ function updateSwings(){
         if(d > TUNE.meleeClose + e.r){
           if(w.type === 'arc'){
             const slack = Math.atan2(e.r + 8, Math.max(d, 1));
-            if(angDiff(a, w.ang) > w.arc/2 + slack) continue;
+            if(angDiff(a, w.ang + w.off) > w.arc/2 + slack) continue;
           } else {
             // dam thang: khoang cach tu tam quai den duong dam
             const ux = Math.cos(w.ang), uy = Math.sin(w.ang), px = c.x-ox, py = c.y-oy;
@@ -1893,10 +1923,12 @@ function drawBolt(b){
   if(!b.el){
     ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.ang);
     if(b.proj === 'arrow'){
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(170,255,170,0.35)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-30,0); ctx.lineTo(-10,0); ctx.stroke(); ctx.restore();
       ctx.fillStyle = '#8a6a44'; ctx.fillRect(-12,-1,16,2);
       ctx.fillStyle = '#e8ecf4'; ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(3,-3); ctx.lineTo(3,3); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#d8d0c0'; ctx.fillRect(-14,-3,4,2); ctx.fillRect(-14,1,4,2);
     } else {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(200,120,255,0.3)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-16,0); ctx.lineTo(-4,0); ctx.stroke(); ctx.restore();
       ctx.rotate(b.spin*1.5);
       ctx.fillStyle = '#e8ecf4'; ctx.beginPath(); ctx.moveTo(7,0); ctx.lineTo(0,-2); ctx.lineTo(-2,0); ctx.lineTo(0,2); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#4a3a5a'; ctx.fillRect(-6,-1,4,2);
@@ -1942,28 +1974,67 @@ function drawNova(n){
 }
 function drawSwing(w){
   if(w.delay > 0) return;
-  const P = G.player, ox = P.x, oy = P.y - 20, k = w.t / w.max, fade = 1 - k;
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const P = G.player, k = w.t / w.max, fade = 1 - k, C = w.col;
+  const ox = P.x + Math.cos(w.ang + Math.PI/2)*w.side*6, oy = P.y - 20 + Math.sin(w.ang + Math.PI/2)*w.side*6;
+  const rgba = (c, a)=> 'rgba(' + c + ',' + Math.max(0, a).toFixed(2) + ')';
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
   if(w.type === 'arc'){
-    // vet chem vong cung quet tu mot ben sang ben kia
-    const sweep = Math.min(1, w.t/4), a0 = w.ang - w.dir*w.arc/2, a1 = a0 + w.dir*w.arc*sweep;
+    // vet chem vong cung quet tu mot ben sang ben kia (toc do va do day tuy vu khi)
+    const spd = w.fx === 'heavy' || w.fx === 'scythe' ? 6 : w.fx === 'axe' ? 5 : 4;
+    const sweep = Math.min(1, w.t/spd), mid = w.ang + w.off, a0 = mid - w.dir*w.arc/2, a1 = a0 + w.dir*w.arc*sweep;
     const lo = Math.min(a0,a1), hi = Math.max(a0,a1);
+    const thick = w.fx === 'heavy' ? 9 : w.fx === 'axe' ? 7 : w.fx === 'halberd' ? 7 : w.fx === 'scythe' ? 6 : 5;
     for(let i=0;i<3;i++){
-      const r = w.range - i*5;
-      ctx.strokeStyle = 'rgba(' + (i===0?'255,255,255':'200,215,255') + ',' + (fade*(0.9-i*0.25)).toFixed(2) + ')';
-      ctx.lineWidth = 5 - i*1.5; ctx.beginPath(); ctx.arc(ox, oy, r, lo, hi); ctx.stroke();
+      const r = w.range - i*(thick*0.9);
+      ctx.strokeStyle = i===0 ? rgba('255,255,255', fade*0.9) : rgba(C, fade*(0.8-i*0.22));
+      ctx.lineWidth = thick - i*1.6; ctx.beginPath(); ctx.arc(ox, oy, Math.max(4,r), lo, hi); ctx.stroke();
     }
-    ctx.fillStyle = 'rgba(220,230,255,' + (fade*0.18).toFixed(2) + ')';
+    ctx.fillStyle = rgba(C, fade*(w.fx === 'heavy' ? 0.28 : 0.18));
     ctx.beginPath(); ctx.moveTo(ox, oy); ctx.arc(ox, oy, w.range, lo, hi); ctx.closePath(); ctx.fill();
+    const tip = a1, tx = ox + Math.cos(tip)*w.range, ty = oy + Math.sin(tip)*w.range;
+    if(w.fx === 'scythe' && sweep < 1 || w.fx === 'scythe' && k < 0.6){
+      // luoi hai cong o dau vet quet + vet ma xanh
+      ctx.fillStyle = rgba('230,255,250', fade);
+      ctx.beginPath(); ctx.arc(tx, ty, 13, tip + w.dir*0.6, tip + w.dir*0.6 + Math.PI, w.dir < 0);
+      ctx.arc(tx + Math.cos(tip)*4, ty + Math.sin(tip)*4, 10, tip + w.dir*0.6 + Math.PI, tip + w.dir*0.6, w.dir >= 0); ctx.fill();
+      ctx.strokeStyle = rgba(C, fade*0.5); ctx.lineWidth = 14; ctx.beginPath(); ctx.arc(ox, oy, w.range + 6, lo, hi); ctx.stroke();
+    } else if(w.fx === 'halberd' && sweep < 1){
+      // luoi riu cua kich o dau vet
+      ctx.save(); ctx.translate(tx, ty); ctx.rotate(tip + w.dir*Math.PI/2);
+      ctx.fillStyle = rgba('255,240,220', fade); ctx.beginPath(); ctx.moveTo(-8,-2); ctx.quadraticCurveTo(0,-11,8,-2); ctx.lineTo(0,2); ctx.closePath(); ctx.fill(); ctx.restore();
+    } else if(w.fx === 'axe' && sweep < 1){
+      ctx.fillStyle = rgba('255,230,200', fade); ctx.beginPath(); ctx.arc(tx, ty, 5, 0, 7); ctx.fill();
+    } else if(w.fx === 'sword' || w.fx === 'twin'){
+      ctx.fillStyle = rgba('255,255,255', fade); ctx.fillRect(Math.round(tx)-1, Math.round(ty)-1, 3, 3);
+    }
   } else {
-    // dam thang: vet sang keo dai roi rut ve
-    const ext = (k < 0.4 ? k/0.4 : 1 - (k-0.4)/0.6*0.5) * w.range;
+    // dam thang: vet sang keo dai roi rut ve (giao co nhip lui truoc)
+    let ext;
+    if(w.fx === 'spear') ext = (k < 0.25 ? -0.25*k/0.25 : k < 0.5 ? -0.25 + 1.35*(k-0.25)/0.25 : 1.1 - (k-0.5)/0.5*0.6) * w.range;
+    else ext = (k < 0.4 ? k/0.4 : 1 - (k-0.4)/0.6*0.5) * w.range;
+    if(ext <= 10){ ctx.restore(); return; }
+    const spread = w.fx === 'trident' ? 0.12 : 0.16;
     for(let p=0;p<w.prongs;p++){
-      const off = (p-(w.prongs-1)/2)*0.16, a = w.ang + off, tipx = ox + Math.cos(a)*ext, tipy = oy + Math.sin(a)*ext;
-      ctx.strokeStyle = 'rgba(255,255,255,' + (fade*0.95).toFixed(2) + ')'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(ox + Math.cos(a)*10, oy + Math.sin(a)*10); ctx.lineTo(tipx, tipy); ctx.stroke();
-      ctx.strokeStyle = 'rgba(170,200,255,' + (fade*0.4).toFixed(2) + ')'; ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.moveTo(ox + Math.cos(a)*ext*0.4, oy + Math.sin(a)*ext*0.4); ctx.lineTo(tipx, tipy); ctx.stroke();
+      const off = (p-(w.prongs-1)/2)*spread, a = w.ang + off, tipx = ox + Math.cos(a)*ext, tipy = oy + Math.sin(a)*ext;
+      const core = w.fx === 'rapier' || w.fx === 'dagger' ? 1.5 : 2, glow = w.fx === 'rapier' ? 4 : w.fx === 'dagger' ? 5 : w.fx === 'spear' ? 7 : 6;
+      const st = w.fx === 'dagger' ? ext*0.55 : w.fx === 'rapier' ? ext*0.25 : 10;
+      ctx.strokeStyle = rgba('255,255,255', fade*0.95); ctx.lineWidth = core;
+      ctx.beginPath(); ctx.moveTo(ox + Math.cos(a)*st, oy + Math.sin(a)*st); ctx.lineTo(tipx, tipy); ctx.stroke();
+      ctx.strokeStyle = rgba(C, fade*0.45); ctx.lineWidth = glow;
+      ctx.beginPath(); ctx.moveTo(ox + Math.cos(a)*Math.max(st, ext*0.4), oy + Math.sin(a)*Math.max(st, ext*0.4)); ctx.lineTo(tipx, tipy); ctx.stroke();
+      // mui nhon o dau
+      if(w.fx === 'spear' || w.fx === 'halberd' || w.fx === 'trident'){
+        const L0 = w.fx === 'spear' ? 9 : 6, W0 = w.fx === 'spear' ? 3.5 : 2.5;
+        ctx.fillStyle = rgba('255,255,255', fade);
+        ctx.beginPath(); ctx.moveTo(tipx + Math.cos(a)*L0*0.5, tipy + Math.sin(a)*L0*0.5);
+        ctx.lineTo(tipx - Math.cos(a)*L0*0.5 + Math.cos(a+Math.PI/2)*W0, tipy - Math.sin(a)*L0*0.5 + Math.sin(a+Math.PI/2)*W0);
+        ctx.lineTo(tipx - Math.cos(a)*L0*0.5 - Math.cos(a+Math.PI/2)*W0, tipy - Math.sin(a)*L0*0.5 - Math.sin(a+Math.PI/2)*W0); ctx.closePath(); ctx.fill();
+      }
+    }
+    if(w.fx === 'trident'){
+      // can dinh ba
+      const bx = ox + Math.cos(w.ang)*ext*0.7, by = oy + Math.sin(w.ang)*ext*0.7;
+      ctx.strokeStyle = rgba(C, fade*0.6); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(ox + Math.cos(w.ang)*10, oy + Math.sin(w.ang)*10); ctx.lineTo(bx, by); ctx.stroke();
     }
   }
   ctx.restore();
@@ -2467,9 +2538,10 @@ document.querySelectorAll('#acts button').forEach(b=>{
 buildMonsterSprites();
 buildRoster();
 buildLobby();
-let acc = 0, last = performance.now();
+let acc = 0, last = performance.now(), FREEZE = false;   // FREEZE: chi dung khi test (dung khung hinh)
 function frame(now){
   acc += Math.min(100, now - last); last = now;
+  if(FREEZE) acc = 0;
   while(acc >= 1000/60){ update(); acc -= 1000/60; }
   render();
   requestAnimationFrame(frame);
@@ -2478,7 +2550,7 @@ requestAnimationFrame(frame);
 window.__dungeon = { raiseShield:()=>raiseShield(), hurtPlayer:(d,x,y)=>hurtPlayer(d,x,y), get G(){ return G; }, get mode(){ return mode; }, pick, TUNE, WEAPONS,
   startGame, swapElement:()=>swapElement(), weaponAttack:()=>weaponAttack(), nextFloor:()=>nextFloor(), damageEnemy,
   startFloor:(i,hp)=>startFloor(i,hp), genMap, floorMap, bfsTiles, openShop, buy, goLobby, continueRun, interact:()=>interact(), get RECORDS(){ return RECORDS; },
-  makeEnemy:(t,x,y)=>makeEnemy(t,x,y), SPR,
+  makeEnemy:(t,x,y)=>makeEnemy(t,x,y), SPR, freeze:f=>{ FREEZE = f; }, step:n=>{ for(let i=0;i<n;i++) update(); render(); },
   setMode:m=>{ mode = m; show(null); } };
 })();
 </script>
