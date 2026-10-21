@@ -46,7 +46,7 @@ Does each feature in the spec ([specs/002-astraeum-tower/spec.md](../specs/002-a
 
 ## 3. Usability testing
 
-**Tester 1**: a classmate, first time playing, no help given. *(Anh: add the tester's name and anything else you noticed.)*
+**Tester 1**: a classmate, first time playing, no help given.
 **Task**: start a new game, clear floor 1, try the weapon and both magic types.
 
 | Observation | Where they struggled | Severity | Action |
@@ -70,20 +70,24 @@ All probes on my own app only. Script: `dungeon/tests/test_edge_and_security.py`
 
 ## 5. AI-assisted review
 
-**Tool**: *(Anh: fill in, e.g. ChatGPT / Gemini / GitHub Copilot, which must be different from Claude, which I used to build the game.)*
-**Code reviewed**: `dungeon/source/game-template.html` (the game code without embedded art, ~140 KB). Paste in parts if the tool limits input.
+**Tool**: Google Gemini (different from Claude, which I used to build the game)
+**Code reviewed**: `dungeon/source/game-template.html` (the game code without embedded art)
 
 **Prompt used**:
 
-> You are a QA and security tester. Review this browser game (HTML5 canvas, JavaScript, localStorage save). List concrete bugs, security issues and edge cases with line references. For each, say how to reproduce it and how severe it is. Focus on: saved data handling, user input, performance in the game loop, and anything that could crash the game.
+> You are a QA and security tester. Review the code of this single-player browser game (HTML5 canvas + JavaScript, progress saved in localStorage, no server). Give me exactly 5 findings, most important first. For each finding: Finding, Where, How to reproduce, Severity. Focus on: saved data handling (localStorage), anything that could crash the game, cheating through DevTools, rapid key input, and performance in the game loop.
 
-| # | Finding from the AI tool | Verified? | How I checked | Decision and why |
-| --- | --- | --- | --- | --- |
-| 1 | *(fill in)* | | | |
-| 2 | | | | |
-| 3 | | | | |
+I re-ran every reproduction step Gemini gave (manually and with a Playwright script) before deciding.
 
-*Tip for checking: many findings can be compared with the probes above (S-02, S-04, S-05). Mark a finding as rejected if it does not apply to a single-player game with no server, for example "use HTTPS for the API".*
+| # | Finding from Gemini | Severity (Gemini) | Verified? | How I checked | Decision and why |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Edited `astraeum-tower-records` (record with no `char`) is not validated and crashes the lobby | High | **Rejected** | Ran Gemini's exact command (`floors: {1: {clears:1, best:100}}`) and reloaded | No crash and no console error. The lobby loads and shows the record. The records are already checked when they load (added after probe S-04) |
+| 2 | Debug hook `window.__dungeon` is exposed, allowing god mode and floor skips | Medium | **Verified** | Same as probe S-05: set HP and skipped floors from the console | Deferred. It is only a single-player game with no server, and the hook is what my automated tests use. Remove it from a release build |
+| 3 | Pressing P / Esc rapidly together with action keys causes overlapping pause states | Medium | **Rejected** | Pressed P/Esc 40 times mixed with the attack key | Game ends in a correct state, no errors, no double menus |
+| 4 | Bullets, rings and scorch marks pile up on a long boss fight (memory leak) | Medium | **Rejected** | Stayed on the floor-10 boss for 12 s with the boss attacking, counted the arrays every 2 s | Arrays stay small (bullets/rings/scorches go back to 0, particles 3–6) because every array is cleaned each frame |
+| 5 | Tapping the on-screen H button uses two herbs | Low | **Rejected** | Tapped the H button once with 5 herbs | Herbs 5 → 4 and HP +30: only one herb is used |
+
+**Takeaway**: 1 of 5 findings was real (the debug hook, which I had already found in my own probing). The other 4 sounded convincing and pointed at real function names, but did not happen when I ran them. Checking each finding by hand mattered.
 
 ---
 
