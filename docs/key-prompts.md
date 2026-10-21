@@ -22,7 +22,7 @@ The game was built with Claude (Anthropic) as the coding assistant. Most prompts
 | 9 | "Add a rock golem and a jumping mushroom to the monster list… I don't have assets. Bats attack with a sonic wave from the mouth." | Code-drawn golem and mushroom, bat sonic attack |
 | 10 | "Give Aries a halberd, Taurus a greatsword, Gemini a rapier…" (all 12) | Final weapon lineup |
 | 11 | "Adjust the effects for each character to match their weapon type." | Per-weapon attack effects |
-| 12 | "Add this for Virgo." (attack GIFs) → "Keep the original speed" → "Only the pull-back and slash" → "2x speed" → "Remove that sprite, no time to fix it." | Attack-sprite support in code; Virgo's sprite removed (see write-up) |
+| 12 | "Add this for Virgo." (attack GIFs) → "Keep the original speed" → "Only the pull-back and slash" → "2x speed" → "Remove that sprite, no time to fix it." | Attack-sprite support in code; Virgo's sprite removed for now |
 | 13 | "Raise character HP to 500." | `TUNE.playerHp = 500` |
 
 ## Testing prompts

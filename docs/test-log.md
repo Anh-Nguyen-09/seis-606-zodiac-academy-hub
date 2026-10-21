@@ -27,7 +27,7 @@ Does each feature in the spec ([specs/002-astraeum-tower/spec.md](../specs/002-a
 | F-12 | Chests and loot (FR-007) | Manual: open chests, kill enemies | Gold, herbs, glowcaps and gems drop; bag counts update; gems combine into one slot | Pass |
 | F-13 | Dodge, shield, herb | Manual | Dodge avoids damage and costs stamina; shield blocks bullets for 3 s; herb heals 30 HP | Pass |
 | F-14 | New enemies (rock golem, jumping mushroom, bat sonic wave) | Spawned next to the player in a test | Golem telegraphs then slams; mushroom wakes and jumps; bats fire sonic waves; no errors | Pass |
-| F-15 | Attack sprite animation (FR-012) | Added Virgo's PixelLab attack GIFs (4 directions), compared with the slash effect | Works, but the pose was too slow at the GIF's speed and did not line up with the hit | **Deferred**: sprite removed, see write-up |
+| F-15 | Attack sprite animation (FR-012) | Added Virgo's PixelLab attack GIFs (4 directions), compared with the slash effect | Works, but the pose was too slow at the GIF's speed and did not line up with the hit | **Deferred**: sprite removed until the action sprites and timing are redone (task T063, T065) |
 
 ## 2. Edge cases and negative testing
 

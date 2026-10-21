@@ -39,7 +39,7 @@ dungeon/
 │   └── maps.json           # hand-built floors 1-3
 └── tests/                # Playwright test scripts
 specs/002-astraeum-tower/ # this spec, plan and tasks
-docs/                     # test log, write-up, presentation, key prompts
+docs/                     # test log, key prompts
 ```
 
 ## Key Decisions

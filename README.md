@@ -13,8 +13,6 @@ A 2D pixel-art action dungeon crawler set in my own fantasy world, the Astraeum 
 | How to play (controls, floors, bosses) | [dungeon/README.md](dungeon/README.md) |
 | Spec Kit: spec, plan, tasks | [specs/002-astraeum-tower/](specs/002-astraeum-tower/) · [specs/001-walkable-hub/](specs/001-walkable-hub/) |
 | Test log (all 5 categories) | [docs/test-log.md](docs/test-log.md) |
-| Write-up (status, root causes, path forward, reflection) | [docs/write-up.md](docs/write-up.md) |
-| Presentation (slides and notes) | [docs/presentation.md](docs/presentation.md) |
 | Key AI prompts | [docs/key-prompts.md](docs/key-prompts.md) |
 | Automated tests | [dungeon/tests/](dungeon/tests/) |
 | Game source (code without embedded art) | [dungeon/source/](dungeon/source/) |
@@ -51,7 +49,7 @@ dungeon/source/             game code template, sprite layout, hand-built maps
 dungeon/tests/              Playwright test scripts
 specs/001-walkable-hub/     Spec Kit artifacts for the academy hub
 specs/002-astraeum-tower/   Spec Kit artifacts for the dungeon game
-docs/                       test log, write-up, presentation, key prompts
+docs/                       test log, key prompts
 academy-town.html           walkable academy hub (feature 001)
 .specify/                   Spec Kit config, templates and constitution
 ```
@@ -63,7 +61,6 @@ academy-town.html           walkable academy hub (feature 001)
 - Progress inside a floor is not saved: refreshing restarts that floor.
 - Monsters and bosses are drawn in code as placeholders.
 
-Details and the plan to fix them: [docs/write-up.md](docs/write-up.md).
 
 ## Credits
 
