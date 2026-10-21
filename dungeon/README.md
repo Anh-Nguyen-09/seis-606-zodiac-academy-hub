@@ -50,7 +50,7 @@ Balance values (HP, damage, speed, cooldowns, floor scaling, Steam Burst, dodge,
 
 ## Credits
 
-- **Character sprites:** created by Anh Nguyen with PixelLab, including Virgo's twin-sword attack pose in all four directions (other characters use the walk sprite plus code effects until their attack poses are made).
+- **Character sprites:** created by Anh Nguyen with PixelLab.
 - **Dungeon art:** the Damp Corridors tileset and Floor 1 layout, plus the arched door, corner candles, cobwebs, rune circle, barrels, crates, clay pots, broken pillars, rubble, wooden and rune treasure chests, gems (amethyst, sapphire, ruby, emerald, mana crystal), healing herb and gold coin, all created by Anh Nguyen with PixelLab.
 - **Monsters, bosses, spell and weapon effects:** drawn in code as placeholders until final sprites are made.
 - **Code:** built with AI-assisted development (Claude).
