@@ -164,9 +164,9 @@ const CHAR_SRC = {"virgoE": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAA
   const CHAR_LAYOUT = {
     virgo: { walk:{ e:{fw:96, ax:44, ay:77}, w:{fw:96, ax:52, ay:77}, n:{fw:96, ax:47, ay:77}, s:{fw:96, ax:47, ay:77} },
              idle:{ img:'virgoIdle', frame:0, fw:64, ax:31, ay:62 },
-             // pose danh song kiem cua Anh (PixelLab, 9 frame, 92px)
-             attack:{ e:{img:'virgoAtkE', fw:92, n:9, ms:200, ax:41, ay:77}, w:{img:'virgoAtkW', fw:92, n:9, ms:200, ax:51, ay:77},
-                      n:{img:'virgoAtkN', fw:92, n:9, ms:200, ax:45, ay:77}, s:{img:'virgoAtkS', fw:92, n:9, ms:200, ax:44, ay:77} } },
+             // pose danh song kiem cua Anh (PixelLab, 9 frame, 92px); seq = chi dung doan thu tay roi chem ra
+             attack:{ e:{img:'virgoAtkE', fw:92, n:9, seq:[3,4,5,6,7,8], ms:200, ax:41, ay:77}, w:{img:'virgoAtkW', fw:92, n:9, seq:[3,4,5,6,7,8], ms:200, ax:51, ay:77},
+                      n:{img:'virgoAtkN', fw:92, n:9, seq:[3,4,5,6,7,8], ms:200, ax:45, ay:77}, s:{img:'virgoAtkS', fw:92, n:9, seq:[3,4,5,6,7,8], ms:200, ax:44, ay:77} } },
     aries: { walk:{ e:{fw:96, ax:45, ay:75}, w:{fw:96, ax:48, ay:75}, n:{fw:80, ax:39, ay:65}, s:{fw:96, ax:48, ay:75} },
              idle:{ img:'ariesIdle', frame:0, fw:64, ax:31, ay:59 } },
     taurus:{ walk:{ e:{fw:96, ax:42, ay:79}, w:{fw:96, ax:54, ay:79}, n:{fw:96, ax:48, ay:78}, s:{fw:96, ax:48, ay:79} },
@@ -1202,7 +1202,7 @@ function weaponAttack(){
     const cx = Math.cos(ang), cy = Math.sin(ang);
     P.atkFace = Math.abs(cx) >= Math.abs(cy) ? (cx > 0 ? 'e' : 'w') : (cy > 0 ? 's' : 'n');
     // giu dung toc do goc cua GIF (ms moi frame), 60 khung hinh game moi giay
-    const A0 = AT[P.atkFace]; P.atkDur = P.atkT = Math.round(A0.n * A0.ms * 60 / 1000);
+    const A0 = AT[P.atkFace]; P.atkDur = P.atkT = Math.round((A0.seq ? A0.seq.length : A0.n) * A0.ms * 60 / 1000);
     if(!P.moving) P.face = P.atkFace;
   }
   if(Wp.type === 'throw'){
@@ -1860,7 +1860,7 @@ function drawPlayer(){
   ctx.save(); ctx.translate(lv[0]*lk, lv[1]*lk);
   if(Lt.attack && P.atkT > 0 && P.dodge <= 0){
     // pose danh rieng cua nhan vat
-    const k = Lt.attack[P.atkFace], fi = Math.min(k.n-1, Math.floor((1 - P.atkT/P.atkDur)*k.n));
+    const k = Lt.attack[P.atkFace], sq = k.seq || [...Array(k.n).keys()], fi = sq[Math.min(sq.length-1, Math.floor((1 - P.atkT/P.atkDur)*sq.length))];
     ctx.drawImage(charImg[k.img], fi*k.fw, 0, k.fw, k.fw, Math.round(P.x-k.ax), Math.round(P.y-k.ay), k.fw, k.fw);
   } else if(P.moving || P.dodge > 0){
     const k = Lt.walk[P.face], img = charImg[pick.id + P.face.toUpperCase()];
