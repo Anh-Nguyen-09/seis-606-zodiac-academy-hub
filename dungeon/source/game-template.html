@@ -1100,9 +1100,9 @@ function weaponAttack(){
   P.wcd = Wp.cd; P.atk = 10; P.atkMax = 10;
   // pose danh (neu nhan vat da co sprite): quay theo huong don danh
   const AT = CHAR_LAYOUT[pick.id].attack;
-  if(AT){
-    const cx = Math.cos(ang), cy = Math.sin(ang);
-    P.atkFace = Math.abs(cx) >= Math.abs(cy) ? (cx > 0 ? 'e' : 'w') : (cy > 0 ? 's' : 'n');
+  const af = (()=>{ const cx = Math.cos(ang), cy = Math.sin(ang); return Math.abs(cx) >= Math.abs(cy) ? (cx > 0 ? 'e' : 'w') : (cy > 0 ? 's' : 'n'); })();
+  if(AT && AT[af]){   // chi huong nao co sprite danh moi doi pose
+    P.atkFace = af;
     // giu dung toc do goc cua GIF (ms moi frame), 60 khung hinh game moi giay
     const A0 = AT[P.atkFace]; P.atkDur = P.atkT = Math.round((A0.seq ? A0.seq.length : A0.n) * A0.ms * 60 / 1000);
     if(!P.moving) P.face = P.atkFace;
@@ -1777,7 +1777,7 @@ function drawPlayer(){
   }
   ctx.globalAlpha = 1;
   ctx.save(); ctx.translate(lv[0]*lk, lv[1]*lk);
-  if(Lt.attack && P.atkT > 0 && P.dodge <= 0){
+  if(Lt.attack && Lt.attack[P.atkFace] && P.atkT > 0 && P.dodge <= 0){
     // pose danh rieng cua nhan vat
     const k = Lt.attack[P.atkFace], sq = k.seq || [...Array(k.n).keys()], fi = sq[Math.min(sq.length-1, Math.floor((1 - P.atkT/P.atkDur)*sq.length))];
     ctx.drawImage(charImg[k.img], fi*k.fw, 0, k.fw, k.fw, Math.round(P.x-k.ax), Math.round(P.y-k.ay), k.fw, k.fw);
