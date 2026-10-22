@@ -43,6 +43,7 @@ Does each feature in the spec ([specs/002-astraeum-tower/spec.md](../specs/002-a
 | E-08 | Dying | Took damage until HP 0 | Death screen: retry floor or go to lobby | Pass |
 | E-09 | Opening the shop with 0 gold | Manual | Buy buttons are greyed out and cannot be clicked; Sell is disabled when the bag has no gems | Pass |
 | E-10 | Bat sonic wave never fired | Spawned a bat next to the player | **Fail**: bats only fired when farther than 50 px, but bats always fly close | Fixed: removed the minimum distance. Retested: pass |
+| E-11 | Loot flying out of a chest in a wall nook | Opened chests on floors 3–9 and launched 8 items in every direction from each chest (script) | **Fail**: 57 of 105 items landed inside the wall and could not be picked up (also seen in manual play) | Fixed: items bounce off walls while flying, and any item that still ends up in a wall is moved to the nearest floor tile. Retested: 0 of 102 stuck |
 
 ## 3. Usability testing
 

@@ -1021,6 +1021,18 @@ const HERB_VAR = 5, HERB_H = 22, GEM_H = 13;   // GEM_H: chieu cao da quy rot tr
 // =====================================================================
 //  VA CHAM
 // =====================================================================
+// vat pham lo nam trong tuong (vd roi tu ruong trong hoc tuong): keo ra o san gan nhat
+function unstickPickup(L, k){
+  if(!blocked(L, k.x, k.y, 3, 3, false)) return;
+  const tx0 = Math.floor(k.x/TS), ty0 = Math.floor(k.y/TS);
+  let best = null, bd = 1e9;
+  for(let r=0; r<=5 && !best; r++) for(let ty=ty0-r; ty<=ty0+r; ty++) for(let tx=tx0-r; tx<=tx0+r; tx++){
+    const x = tx*TS + 16, y = ty*TS + 22;
+    if(blocked(L, x, y, 3, 3, false)) continue;
+    const d = Math.hypot(x - k.x, y - k.y); if(d < bd){ bd = d; best = {x, y}; }
+  }
+  if(best){ k.x = best.x; k.y = best.y; }
+}
 function blocked(L, x, y, hw, hh, solidsToo){
   const x0 = Math.floor((x-hw)/TS), x1 = Math.floor((x+hw)/TS), y0 = Math.floor((y-hh)/TS), y1 = Math.floor(y/TS);
   for(let ty=y0; ty<=y1; ty++) for(let tx=x0; tx<=x1; tx++) if(isWall(L,tx,ty)) return true;
@@ -1780,7 +1792,13 @@ function updateCombat(){
 
   for(const k of L.pickups){
     k.bob += 0.08;
-    if(k.vz || k.h > 0){ k.x += k.vx; k.y += k.vy; k.h -= k.vz; k.vz += 0.22; if(k.h <= 0){ k.h = 0; k.vz = 0; k.vx = 0; k.vy = 0; } }
+    if(k.vz || k.h > 0){
+      // vat pham bay ra khong duoc xuyen vao tuong: cham tuong thi nay nguoc lai
+      if(!blocked(L, k.x + k.vx, k.y, 3, 3, false)) k.x += k.vx; else k.vx *= -0.4;
+      if(!blocked(L, k.x, k.y + k.vy, 3, 3, false)) k.y += k.vy; else k.vy *= -0.4;
+      k.h -= k.vz; k.vz += 0.22;
+      if(k.h <= 0){ k.h = 0; k.vz = 0; k.vx = 0; k.vy = 0; unstickPickup(L, k); }
+    }
     if(k.delay > 0){ k.delay--; continue; }
     const d = dist(k.x, k.y, P.x, P.y-10);
     const mag = k.kind === 'gold' ? 90 : 64;
