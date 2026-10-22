@@ -421,9 +421,9 @@ function tryGenMap(n){
   if(Math.random() < 0.6) put(others[ri(0,others.length-1)], 'm');
   const gems = ['a','a','z','z','r','e']; if(n >= 6) gems.push('r','e','k'); if(n >= 11) gems.push('k');
   for(let i=0;i<ri(1,3);i++) put(others[ri(0,others.length-1)], gems[ri(0,gems.length-1)]);
-  // tru ban do (tang truoc boss) ngay canh cho xuat phat
+  // tru ban do (tang truoc boss) dat gan cong len tang tiep (mua do truoc khi vao phong boss)
   if(SHOP_FLOORS.includes(n)){
-    for(const [dx,dy] of [[2,-1],[-2,-1],[2,1],[-2,1],[0,-2]]){ const x = S.cx+dx, y = S.cy+dy; if(g[y] && g[y][x] === '.'){ g[y][x] = 'S'; break; } }
+    for(const [dx,dy] of [[2,0],[-2,0],[2,1],[-2,1],[2,-1],[-2,-1],[0,2],[0,-2]]){ const x = far.cx+dx, y = far.cy+dy; if(g[y] && g[y][x] === '.'){ g[y][x] = 'S'; break; } }
   }
   // khoet vai hoc tuong nho (sau 1 o) vao vach phong de dat ruong / vat pham
   for(const r of rooms){
