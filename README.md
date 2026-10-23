@@ -56,7 +56,7 @@ academy-town.html           walkable academy hub (feature 001)
 
 ## Known gaps (documented, not hidden)
 
-- Attack and cast animations for the characters are not done yet (walking sprite + code-drawn effects for now).
+- Attack animations: done for Virgo (4 directions); the other 11 characters and all cast animations are not done yet (walking sprite + code-drawn effects for now).
 - Healing (herb 30 HP) has not been rebalanced for the new 500 HP base.
 - Progress inside a floor is not saved: refreshing restarts that floor.
 - Monsters and bosses are drawn in code as placeholders.
