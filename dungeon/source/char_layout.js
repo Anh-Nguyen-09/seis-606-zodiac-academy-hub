@@ -1,8 +1,9 @@
   const CHAR_LAYOUT = {
     virgo: { walk:{ e:{fw:96, ax:44, ay:77}, w:{fw:96, ax:52, ay:77}, n:{fw:96, ax:47, ay:77}, s:{fw:96, ax:47, ay:77} },
              idle:{ img:'virgoIdle', frame:0, fw:64, ax:31, ay:62 },
-             // pose danh song kiem (PixelLab): moi co huong Nam, cac huong khac van dung sprite di
-             attack:{ s:{img:'virgoAtkS', fw:92, n:5, ms:100, ax:44, ay:77} } },
+             // pose danh song kiem (PixelLab): co huong Nam, Dong, Tay; huong Bac van dung sprite di
+             attack:{ s:{img:'virgoAtkS', fw:92, n:5, ms:100, ax:44, ay:77},
+                      e:{img:'virgoAtkE', fw:92, n:5, ms:100, ax:41, ay:77}, w:{img:'virgoAtkW', fw:92, n:5, ms:100, ax:49, ay:77} } },
     aries: { walk:{ e:{fw:96, ax:45, ay:75}, w:{fw:96, ax:48, ay:75}, n:{fw:80, ax:39, ay:65}, s:{fw:96, ax:48, ay:75} },
              idle:{ img:'ariesIdle', frame:0, fw:64, ax:31, ay:59 } },
     taurus:{ walk:{ e:{fw:96, ax:42, ay:79}, w:{fw:96, ax:54, ay:79}, n:{fw:96, ax:48, ay:78}, s:{fw:96, ax:48, ay:79} },
